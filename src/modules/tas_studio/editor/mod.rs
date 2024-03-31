@@ -3068,7 +3068,20 @@ impl Editor {
         } else {
             let current_frame = &mut branch.frames[frame.frame_idx];
             if *current_frame != frame.frame {
+                // Because we already obtain the correct states in bxt-strafe,
+                // we will restore it back before this wiping it out.
+                // If we don't do this then more IPC stuffs sending trivially deducible data.
+                let prev_accel_yawspeed_value = current_frame.state.accel_yawspeed_value;
+                let prev_accel_yawspeed_target = current_frame.state.accel_yawspeed_target;
+                let prev_accel_yawspeed_accel = current_frame.state.accel_yawspeed_accel;
+                let prev_accel_yawspeed_right = current_frame.state.accel_yawspeed_right;
+
                 *current_frame = frame.frame;
+
+                current_frame.state.accel_yawspeed_value = prev_accel_yawspeed_value;
+                current_frame.state.accel_yawspeed_target = prev_accel_yawspeed_target;
+                current_frame.state.accel_yawspeed_accel = prev_accel_yawspeed_accel;
+                current_frame.state.accel_yawspeed_right = prev_accel_yawspeed_right;
 
                 branch.first_predicted_frame =
                     min(branch.first_predicted_frame, frame.frame_idx + 1);

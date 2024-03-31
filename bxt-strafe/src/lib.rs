@@ -133,6 +133,13 @@ pub struct State {
     // Number of frames for [`StrafeDir::LeftRight`] or [`StrafeDir::RightLeft`] which goes from
     // `0` to `count - 1`.
     pub strafe_cycle_frame_count: u32,
+    // Accelerated yaw speed specifics
+    pub accel_yawspeed_value: f32,
+    pub accel_yawspeed_target: f32,
+    pub accel_yawspeed_accel: f32,
+    // For the time being it's ok if it is just left or right.
+    // 0 = left, 1 = right.
+    pub accel_yawspeed_right: bool,
 }
 
 impl State {
@@ -145,6 +152,10 @@ impl State {
             jumped: false,
             move_traces: ArrayVec::new(),
             strafe_cycle_frame_count: 0,
+            accel_yawspeed_value: 0.,
+            accel_yawspeed_target: 0.,
+            accel_yawspeed_accel: 0.,
+            accel_yawspeed_right: false,
         };
 
         rv.update_place(tracer);

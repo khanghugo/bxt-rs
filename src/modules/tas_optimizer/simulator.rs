@@ -141,7 +141,10 @@ mod tests {
 
     use bxt_strafe::{DummyTracer, Parameters, Player, State};
     use glam::Vec3;
-    use hltas::types::FrameBulk;
+    use hltas::types::{
+        ActionKeys, AutoActions, AutoMovement, FrameBulk, MovementKeys, StrafeDir, StrafeSettings,
+        StrafeType,
+    };
 
     use super::*;
 
@@ -282,5 +285,161 @@ mod tests {
         ];
         let simulator = Simulator::new(&DummyTracer, &[default_frame()], &lines);
         assert_eq!(simulator.count(), 2);
+    }
+
+    #[test]
+    fn simulator_accel_yawspeed_increment() {
+        let lines = [Line::FrameBulk(FrameBulk {
+            auto_actions: AutoActions {
+                movement: Some(AutoMovement::Strafe(StrafeSettings {
+                    type_: StrafeType::AcceleratedYawspeed(210., 10.),
+                    dir: StrafeDir::Left,
+                })),
+                leave_ground_action: None,
+                jump_bug: None,
+                duck_before_collision: None,
+                duck_before_ground: None,
+                duck_when_jump: None,
+            },
+            movement_keys: MovementKeys::default(),
+            action_keys: ActionKeys::default(),
+            frame_time: "0.01".to_string(),
+            pitch: None,
+            frame_count: NonZeroU32::new(5).unwrap(),
+            console_command: None,
+        })];
+
+        let simulator = Simulator::new(&DummyTracer, &[default_frame()], &lines);
+
+        let frames: Vec<Frame> = simulator
+            .map(|frame| {
+                // println!("first simulation {}", frame.state.accel_yawspeed_value);
+                frame
+            })
+            .collect();
+
+        let lines2 = [
+            Line::FrameBulk(FrameBulk {
+                auto_actions: AutoActions {
+                    movement: Some(AutoMovement::Strafe(StrafeSettings {
+                        type_: StrafeType::AcceleratedYawspeed(210., 10.),
+                        dir: StrafeDir::Left,
+                    })),
+                    leave_ground_action: None,
+                    jump_bug: None,
+                    duck_before_collision: None,
+                    duck_before_ground: None,
+                    duck_when_jump: None,
+                },
+                movement_keys: MovementKeys::default(),
+                action_keys: ActionKeys::default(),
+                frame_time: "0.01".to_string(),
+                pitch: None,
+                frame_count: NonZeroU32::new(5).unwrap(),
+                console_command: None,
+            }),
+            Line::FrameBulk(FrameBulk {
+                auto_actions: AutoActions {
+                    movement: Some(AutoMovement::Strafe(StrafeSettings {
+                        type_: StrafeType::AcceleratedYawspeed(210., 10.),
+                        dir: StrafeDir::Left,
+                    })),
+                    leave_ground_action: None,
+                    jump_bug: None,
+                    duck_before_collision: None,
+                    duck_before_ground: None,
+                    duck_when_jump: None,
+                },
+                movement_keys: MovementKeys::default(),
+                action_keys: ActionKeys::default(),
+                frame_time: "0.01".to_string(),
+                pitch: None,
+                frame_count: NonZeroU32::new(10).unwrap(),
+                console_command: None,
+            }),
+        ];
+
+        let simulator2 = Simulator::new(&DummyTracer, &frames, &lines2);
+        let frames: Vec<Frame> = simulator2.collect();
+
+        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 150.);
+    }
+
+    #[test]
+    fn simulator_accel_yawspeed_reset() {
+        let lines = [Line::FrameBulk(FrameBulk {
+            auto_actions: AutoActions {
+                movement: Some(AutoMovement::Strafe(StrafeSettings {
+                    type_: StrafeType::AcceleratedYawspeed(210., 10.),
+                    dir: StrafeDir::Left,
+                })),
+                leave_ground_action: None,
+                jump_bug: None,
+                duck_before_collision: None,
+                duck_before_ground: None,
+                duck_when_jump: None,
+            },
+            movement_keys: MovementKeys::default(),
+            action_keys: ActionKeys::default(),
+            frame_time: "0.01".to_string(),
+            pitch: None,
+            frame_count: NonZeroU32::new(5).unwrap(),
+            console_command: None,
+        })];
+
+        let simulator = Simulator::new(&DummyTracer, &[default_frame()], &lines);
+
+        let frames: Vec<Frame> = simulator
+            .map(|frame| {
+                // println!("first simulation {}", frame.state.accel_yawspeed_value);
+                frame
+            })
+            .collect();
+
+        let lines2 = [
+            Line::FrameBulk(FrameBulk {
+                auto_actions: AutoActions {
+                    movement: Some(AutoMovement::Strafe(StrafeSettings {
+                        type_: StrafeType::AcceleratedYawspeed(200., 10.),
+                        dir: StrafeDir::Left,
+                    })),
+                    leave_ground_action: None,
+                    jump_bug: None,
+                    duck_before_collision: None,
+                    duck_before_ground: None,
+                    duck_when_jump: None,
+                },
+                movement_keys: MovementKeys::default(),
+                action_keys: ActionKeys::default(),
+                frame_time: "0.01".to_string(),
+                pitch: None,
+                frame_count: NonZeroU32::new(5).unwrap(),
+                console_command: None,
+            }),
+            Line::FrameBulk(FrameBulk {
+                auto_actions: AutoActions {
+                    movement: Some(AutoMovement::Strafe(StrafeSettings {
+                        type_: StrafeType::AcceleratedYawspeed(210., 10.),
+                        dir: StrafeDir::Left,
+                    })),
+                    leave_ground_action: None,
+                    jump_bug: None,
+                    duck_before_collision: None,
+                    duck_before_ground: None,
+                    duck_when_jump: None,
+                },
+                movement_keys: MovementKeys::default(),
+                action_keys: ActionKeys::default(),
+                frame_time: "0.01".to_string(),
+                pitch: None,
+                frame_count: NonZeroU32::new(10).unwrap(),
+                console_command: None,
+            }),
+        ];
+
+        let simulator2 = Simulator::new(&DummyTracer, &frames, &lines2);
+        let frames: Vec<Frame> = simulator2.collect();
+
+        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 90.);
     }
 }

@@ -419,8 +419,49 @@ impl<S: Step> Step for Strafe<S> {
                     Vct::MAX_SPEED_CAP
                 );
 
-                let (camera_yaw, entry) = if let StrafeType::ConstYawspeed(yawspeed) = type_ {
+                let (camera_yaw, entry) = if matches!(
+                    type_,
+                    StrafeType::ConstYawspeed(_) | StrafeType::AcceleratedYawspeed(_, _)
+                ) {
                     let right = matches!(dir, StrafeDir::Right);
+
+                    let yawspeed = match type_ {
+                        StrafeType::ConstYawspeed(yawspeed) => yawspeed,
+                        StrafeType::AcceleratedYawspeed(target, accel) => {
+                            // Reset value if we have different inputs.
+                            // This means that if we split a s5x bulk,
+                            // there won't be any side effects.
+                            if target != state.accel_yawspeed_target
+                                || accel != state.accel_yawspeed_accel
+                                || right != state.accel_yawspeed_right
+                            {
+                                // Terrible hack to have 0 as the start and target at the end and
+                                // vice versa.
+                                state.accel_yawspeed_value = if accel.is_sign_negative() {
+                                    target - accel
+                                } else {
+                                    0. - accel
+                                };
+
+                                // Update so next time we know what to compare against.
+                                state.accel_yawspeed_target = target;
+                                state.accel_yawspeed_accel = accel;
+                                state.accel_yawspeed_right = right;
+                            };
+
+                            state.accel_yawspeed_value = if accel.is_sign_negative() {
+                                // accel is negative so addition is subtraction.
+                                (state.accel_yawspeed_value + accel).max(0.)
+                            } else {
+                                // .max(0.) to avoid negative and be consistent with HLStrafe.
+                                (state.accel_yawspeed_value + accel).max(0.).min(target)
+                            };
+
+                            state.accel_yawspeed_value
+                        }
+                        _ => unreachable!(),
+                    };
+
                     let yaw_delta = (yawspeed * parameters.frame_time).to_radians();
 
                     let accel_angle = match state.place {

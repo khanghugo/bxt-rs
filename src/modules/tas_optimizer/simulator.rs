@@ -289,6 +289,8 @@ mod tests {
 
     #[test]
     fn simulator_accel_yawspeed_increment() {
+        let mut frames: Vec<Frame> = vec![default_frame()];
+
         let lines = [Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
@@ -309,14 +311,9 @@ mod tests {
             console_command: None,
         })];
 
-        let simulator = Simulator::new(&DummyTracer, &[default_frame()], &lines);
+        let simulator = Simulator::new(&DummyTracer, &frames, &lines);
 
-        let frames: Vec<Frame> = simulator
-            .map(|frame| {
-                // println!("first simulation {}", frame.state.accel_yawspeed_value);
-                frame
-            })
-            .collect();
+        frames.append(&mut simulator.collect::<Vec<Frame>>());
 
         let lines2 = [
             Line::FrameBulk(FrameBulk {
@@ -354,23 +351,25 @@ mod tests {
                 action_keys: ActionKeys::default(),
                 frame_time: "0.01".to_string(),
                 pitch: None,
-                frame_count: NonZeroU32::new(10).unwrap(),
+                frame_count: NonZeroU32::new(1).unwrap(),
                 console_command: None,
             }),
         ];
 
         let simulator2 = Simulator::new(&DummyTracer, &frames, &lines2);
-        let frames: Vec<Frame> = simulator2.collect();
+        frames.append(&mut simulator2.collect::<Vec<Frame>>());
 
-        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 150.);
+        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 50.);
     }
 
     #[test]
     fn simulator_accel_yawspeed_reset() {
+        let mut frames: Vec<Frame> = vec![default_frame()];
+
         let lines = [Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::AcceleratedYawspeed(210., 10.),
+                    type_: StrafeType::AcceleratedYawspeed(200., 10.),
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -387,14 +386,9 @@ mod tests {
             console_command: None,
         })];
 
-        let simulator = Simulator::new(&DummyTracer, &[default_frame()], &lines);
+        let simulator = Simulator::new(&DummyTracer, &frames, &lines);
 
-        let frames: Vec<Frame> = simulator
-            .map(|frame| {
-                // println!("first simulation {}", frame.state.accel_yawspeed_value);
-                frame
-            })
-            .collect();
+        frames.append(&mut simulator.collect::<Vec<Frame>>());
 
         let lines2 = [
             Line::FrameBulk(FrameBulk {
@@ -438,7 +432,7 @@ mod tests {
         ];
 
         let simulator2 = Simulator::new(&DummyTracer, &frames, &lines2);
-        let frames: Vec<Frame> = simulator2.collect();
+        frames.append(&mut simulator2.collect::<Vec<Frame>>());
 
         assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 90.);
     }

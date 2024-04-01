@@ -431,9 +431,9 @@ impl<S: Step> Step for Strafe<S> {
                             // Reset value if we have different inputs.
                             // This means that if we split a s5x bulk,
                             // there won't be any side effects.
-                            if target != state.accel_yawspeed_target
-                                || accel != state.accel_yawspeed_accel
-                                || right != state.accel_yawspeed_right
+                            if target != state.prev_accel_yawspeed_target
+                                || accel != state.prev_accel_yawspeed_accel
+                                || right != state.prev_accel_yawspeed_right
                             {
                                 // Terrible hack to have 0 as the start and target at the end and
                                 // vice versa.
@@ -444,9 +444,9 @@ impl<S: Step> Step for Strafe<S> {
                                 };
 
                                 // Update so next time we know what to compare against.
-                                state.accel_yawspeed_target = target;
-                                state.accel_yawspeed_accel = accel;
-                                state.accel_yawspeed_right = right;
+                                state.prev_accel_yawspeed_target = target;
+                                state.prev_accel_yawspeed_accel = accel;
+                                state.prev_accel_yawspeed_right = right;
                             };
 
                             state.accel_yawspeed_value = if accel.is_sign_negative() {

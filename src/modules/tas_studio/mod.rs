@@ -1049,6 +1049,8 @@ Values that you can toggle:
 - s07: right-left strafing
 - s40: constant turn rate to the left
 - s41: constant turn rate to the right
+- s50: accelerated turn rate to the left
+- s51: accelerated turn rate to the right
 - lgagst: makes autojump and ducktap trigger at optimal speed
 - autojump
 - ducktap
@@ -1125,6 +1127,14 @@ fn toggle(marker: MainThreadMarker, what: String) {
         "s41" => ToggleAutoActionTarget::Strafe {
             dir: StrafeDir::Right,
             type_: StrafeType::ConstYawspeed(210.),
+        },
+        "s50" => ToggleAutoActionTarget::Strafe {
+            dir: StrafeDir::Left,
+            type_: StrafeType::AcceleratedYawspeed(210., 10.),
+        },
+        "s51" => ToggleAutoActionTarget::Strafe {
+            dir: StrafeDir::Right,
+            type_: StrafeType::AcceleratedYawspeed(210., 10.),
         },
         "lgagst" => ToggleAutoActionTarget::LeaveGroundAtOptimalSpeed,
         "autojump" => ToggleAutoActionTarget::AutoJump,
@@ -1593,6 +1603,7 @@ pub unsafe fn on_tas_playback_frame(
         // TODO: prev_frame_input, which is not set here, is important.
         let mut strafe_state = bxt_strafe::State::new(&tracer, params, player);
         strafe_state.strafe_cycle_frame_count = data.strafe_cycle_frame_count;
+        // strafe_state.accel_yawspeed_value = data.accel_yawspeed_value;
 
         // Get view angles for this frame.
         unsafe {
@@ -1870,6 +1881,9 @@ fn add_frame_bulk_hud_lines(text: &mut Vec<u8>, bulk: &FrameBulk) {
                 StrafeType::ConstYawspeed(yawspeed) => {
                     write!(text, "turn rate: {yawspeed:.0}").unwrap();
                 }
+                StrafeType::AcceleratedYawspeed(target, accel) => {
+                    write!(text, "accel turn: {target:.0} {accel:.0}").unwrap();
+                }
             }
             text.extend(b")\0");
         }
@@ -2033,6 +2047,22 @@ pub fn draw_hud(marker: MainThreadMarker, draw: &hud::Draw) {
     for line in text.split_inclusive(|c| *c == b'\0') {
         ml.line(line);
     }
+
+    if let Some(side_strafe_accelerated_yawspeed_adjustment) =
+        editor.side_strafe_accelerated_yawspeed_adjustment()
+    {
+        draw.string(
+            IVec2::new(
+                info.iWidth / 2 - info.iCharHeight * 3,
+                info.iHeight / 2 + info.iCharHeight * 2,
+            ),
+            if side_strafe_accelerated_yawspeed_adjustment.change_target {
+                b"Yawspeed Target\0"
+            } else {
+                b"Yawspeed Acceleration\0"
+            },
+        );
+    }
 }
 
 fn add_hovered_frame_hud_lines(text: &mut Vec<u8>, frame_idx: usize, frame: &Frame) {
@@ -2068,6 +2098,12 @@ fn add_hovered_frame_hud_lines(text: &mut Vec<u8>, frame_idx: usize, frame: &Fra
     write!(text, "  Z Pos: {:.1}\0", frame.state.player.pos.z).unwrap();
 
     write!(text, "  Stamina: {:.1}\0", frame.state.player.stamina_time).unwrap();
+    write!(
+        text,
+        "  Accel Yawspeed: {:.1}\0",
+        frame.state.accel_yawspeed_value
+    )
+    .unwrap();
 }
 
 static PREVENT_UNPAUSE: MainThreadCell<bool> = MainThreadCell::new(false);

@@ -92,6 +92,11 @@ pub enum Operation {
         from: f32,
         to: f32,
     },
+    SetAcceleratedYawspeed {
+        bulk_idx: usize,
+        from: (f32, f32),
+        to: (f32, f32),
+    },
     SetFrameTime {
         bulk_idx: usize,
         from: String,
@@ -370,6 +375,25 @@ impl Operation {
 
                 *yawspeed = to;
                 return Some(first_frame_idx);
+            }
+            Operation::SetAcceleratedYawspeed { bulk_idx, from, to } => {
+                let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
+                    .nth(bulk_idx)
+                    .expect("invalid bulk index");
+
+                let accel_yawspeed = bulk
+                    .accelerated_yawspeed_mut()
+                    .expect("frame bulk should have target yawspeed and acceleration");
+                assert_eq!(
+                    from,
+                    (*accel_yawspeed.0, *accel_yawspeed.1),
+                    "accelerated yawspeed values don't match"
+                );
+
+                if from != to {
+                    (*accel_yawspeed.0, *accel_yawspeed.1) = to;
+                    return Some(first_frame_idx);
+                }
             }
             Operation::SetFrameTime {
                 bulk_idx,
@@ -658,6 +682,25 @@ impl Operation {
 
                 *yawspeed = from;
                 return Some(first_frame_idx);
+            }
+            Operation::SetAcceleratedYawspeed { bulk_idx, from, to } => {
+                let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
+                    .nth(bulk_idx)
+                    .expect("invalid bulk index");
+
+                let accel_yawspeed = bulk
+                    .accelerated_yawspeed_mut()
+                    .expect("frame bulk should have target yawspeed and acceleration");
+                assert_eq!(
+                    to,
+                    (*accel_yawspeed.0, *accel_yawspeed.1),
+                    "accelerated yawspeed values don't match"
+                );
+
+                if from != to {
+                    (*accel_yawspeed.0, *accel_yawspeed.1) = from;
+                    return Some(first_frame_idx);
+                }
             }
             Operation::SetFrameTime {
                 bulk_idx,
@@ -1217,6 +1260,41 @@ s41-------|------|------|0.004|70|-|10
             },
             "\
 ----------|------|------|0.004|70|-|6",
+        );
+    }
+
+    #[test]
+    fn op_set_accelerated_yawspeed() {
+        check_op(
+            "\
+----------|------|------|0.004|10|-|6
+s50-------|------|------|0.004|0 0|-|10
+s51-------|------|------|0.004|70 10|-|10",
+            Operation::SetAcceleratedYawspeed {
+                bulk_idx: 1,
+                from: (0., 0.),
+                to: (69., 69.),
+            },
+            "\
+----------|------|------|0.004|10|-|6
+s50-------|------|------|0.004|69 69|-|10
+s51-------|------|------|0.004|70 10|-|10",
+        );
+
+        check_op(
+            "\
+----------|------|------|0.004|10|-|6
+s50-------|------|------|0.004|0 0|-|10
+s51-------|------|------|0.004|70 10|-|10",
+            Operation::SetAcceleratedYawspeed {
+                bulk_idx: 1,
+                from: (0., 0.),
+                to: (69., -11.42),
+            },
+            "\
+----------|------|------|0.004|10|-|6
+s50-------|------|------|0.004|69 -11.42|-|10
+s51-------|------|------|0.004|70 10|-|10",
         );
     }
 }

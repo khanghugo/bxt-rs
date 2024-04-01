@@ -366,7 +366,7 @@ mod tests {
     fn simulator_accel_yawspeed_reset() {
         let mut frames: Vec<Frame> = vec![default_frame()];
 
-        let lines = [Line::FrameBulk(FrameBulk {
+        let mut lines = vec![Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
                     type_: StrafeType::AcceleratedYawspeed(200., 10.),
@@ -387,29 +387,10 @@ mod tests {
         })];
 
         let simulator = Simulator::new(&DummyTracer, &frames, &lines);
-
         frames.append(&mut simulator.collect::<Vec<Frame>>());
 
-        let lines2 = [
-            Line::FrameBulk(FrameBulk {
-                auto_actions: AutoActions {
-                    movement: Some(AutoMovement::Strafe(StrafeSettings {
-                        type_: StrafeType::AcceleratedYawspeed(200., 10.),
-                        dir: StrafeDir::Left,
-                    })),
-                    leave_ground_action: None,
-                    jump_bug: None,
-                    duck_before_collision: None,
-                    duck_before_ground: None,
-                    duck_when_jump: None,
-                },
-                movement_keys: MovementKeys::default(),
-                action_keys: ActionKeys::default(),
-                frame_time: "0.01".to_string(),
-                pitch: None,
-                frame_count: NonZeroU32::new(5).unwrap(),
-                console_command: None,
-            }),
+        // reset due to target change
+        lines.push(
             Line::FrameBulk(FrameBulk {
                 auto_actions: AutoActions {
                     movement: Some(AutoMovement::Strafe(StrafeSettings {
@@ -428,12 +409,66 @@ mod tests {
                 pitch: None,
                 frame_count: NonZeroU32::new(10).unwrap(),
                 console_command: None,
-            }),
-        ];
+            })
+        );
 
-        let simulator2 = Simulator::new(&DummyTracer, &frames, &lines2);
-        frames.append(&mut simulator2.collect::<Vec<Frame>>());
-
+        let simulator = Simulator::new(&DummyTracer, &frames, &lines);
+        frames.append(&mut simulator.collect::<Vec<Frame>>());
         assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 90.);
+
+        // reset due to accel change
+        lines.push(
+            Line::FrameBulk(FrameBulk {
+                auto_actions: AutoActions {
+                    movement: Some(AutoMovement::Strafe(StrafeSettings {
+                        type_: StrafeType::AcceleratedYawspeed(210., 9.),
+                        dir: StrafeDir::Left,
+                    })),
+                    leave_ground_action: None,
+                    jump_bug: None,
+                    duck_before_collision: None,
+                    duck_before_ground: None,
+                    duck_when_jump: None,
+                },
+                movement_keys: MovementKeys::default(),
+                action_keys: ActionKeys::default(),
+                frame_time: "0.01".to_string(),
+                pitch: None,
+                frame_count: NonZeroU32::new(9).unwrap(),
+                console_command: None,
+            })
+        );
+
+        let simulator = Simulator::new(&DummyTracer, &frames, &lines);
+        frames.append(&mut simulator.collect::<Vec<Frame>>());
+        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 72.);
+
+        // reset due to direction change
+        lines.push(
+            Line::FrameBulk(FrameBulk {
+                auto_actions: AutoActions {
+                    movement: Some(AutoMovement::Strafe(StrafeSettings {
+                        type_: StrafeType::AcceleratedYawspeed(210., 9.),
+                        dir: StrafeDir::Right,
+                    })),
+                    leave_ground_action: None,
+                    jump_bug: None,
+                    duck_before_collision: None,
+                    duck_before_ground: None,
+                    duck_when_jump: None,
+                },
+                movement_keys: MovementKeys::default(),
+                action_keys: ActionKeys::default(),
+                frame_time: "0.01".to_string(),
+                pitch: None,
+                frame_count: NonZeroU32::new(9).unwrap(),
+                console_command: None,
+            })
+        );
+
+        let simulator = Simulator::new(&DummyTracer, &frames, &lines);
+        frames.append(&mut simulator.collect::<Vec<Frame>>());
+        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 72.);
+
     }
 }

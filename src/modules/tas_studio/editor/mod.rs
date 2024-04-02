@@ -292,14 +292,28 @@ struct AdjacentYawspeedAdjustment {
 pub struct AcceleratedYawspeedAdjustment {
     /// The mouse adjustment itself.
     ///
-    /// First value is target. Second value is acceleration.
-    mouse_adjustment: MouseAdjustment<(f32, f32)>,
+    /// (start, target, accel)
+    mouse_adjustment: MouseAdjustment<(f32, f32, f32)>,
     /// Indicates which change mode is in use.
     ///
-    /// Left click while holding down right mouse button to switch mode.
-    pub change_target: bool,
+    /// Left click while holding down right mouse button to switch change mode.
+    ///
+    /// 0 = target, 1 = accel, 2 = start.
+    pub mode: AcceleratedYawSpeedAdjustmentMode,
     /// Offset the mouse delta position when mode is switched.
     mouse_offset: IVec2,
+    /// Calculated yawspeed from previous frame.
+    current_yawspeed: f32,
+}
+
+/// Modes of operation for accelerated yawspeed adjustment.
+///
+/// Cycling by holding right mouse button and left click.
+#[derive(Debug, Clone, Copy)]
+pub enum AcceleratedYawSpeedAdjustmentMode {
+    Target = 0,
+    Acceleration,
+    Start,
 }
 
 /// Data for handling the insert-camera-line adjustment.
@@ -994,9 +1008,12 @@ impl Editor {
                                 _ => dir,
                             };
 
+                            // TODO: do something similar to s5x
+                            // where it takes yawspeed of previous frame/bulk.
+
                             self.side_strafe_yawspeed_adjustment =
                                 Some(MouseAdjustment::new(*yawspeed, mouse_pos, dir))
-                        } else if let Some((target, accel)) = bulk.accelerated_yawspeed() {
+                        } else if let Some((start, target, accel)) = bulk.accelerated_yawspeed() {
                             // Make the adjustment face the expected way.
                             let dir = match bulk.auto_actions.movement {
                                 Some(AutoMovement::Strafe(StrafeSettings {
@@ -1006,16 +1023,48 @@ impl Editor {
                                 _ => dir,
                             };
 
+                            // Need to know the previous bulk so we can get the accel yawspeed from
+                            // that.
+                            let (prev_bulk, prev_bulk_last_frame_idx) = branch
+                                .branch
+                                .script
+                                .frame_bulks()
+                                .scan(0, |frame_idx, bulk| {
+                                    *frame_idx += bulk.frame_count.get() as usize;
+                                    Some((bulk, *frame_idx))
+                                })
+                                .nth(active_bulk_idx - 1)
+                                .unwrap();
+
+                            let frame = &branch.frames[prev_bulk_last_frame_idx];
+
+                            // TODO: make it continuous with other kind of strafing
+                            // by calculating our own frame yawspeed.
+                            // It would benefit the normal s4x as well.
+
+                            // If previous bulk is s4x then use that frame yawspeed.
+                            let current_yawspeed =
+                                if let Some(AutoMovement::Strafe(StrafeSettings {
+                                    type_: StrafeType::ConstYawspeed(yawspeed),
+                                    ..
+                                })) = prev_bulk.auto_actions.movement
+                                {
+                                    yawspeed
+                                } else {
+                                    frame.state.accel_yawspeed_value
+                                };
+
                             // By default it should change target.
                             self.side_strafe_accelerated_yawspeed_adjustment =
                                 Some(AcceleratedYawspeedAdjustment {
                                     mouse_adjustment: MouseAdjustment::new(
-                                        (*target, *accel),
+                                        (*start, *target, *accel),
                                         mouse_pos,
                                         dir,
                                     ),
-                                    change_target: true,
+                                    mode: AcceleratedYawSpeedAdjustmentMode::Target,
                                     mouse_offset: IVec2::ZERO,
+                                    current_yawspeed,
                                 });
                         }
                     } else if mouse.buttons.is_middle_down() {
@@ -1739,7 +1788,7 @@ impl Editor {
                 .nth(bulk_idx)
                 .unwrap();
 
-        let (target, accel) = bulk.accelerated_yawspeed_mut().unwrap();
+        let (start, target, accel) = bulk.accelerated_yawspeed_mut().unwrap();
 
         if !mouse.buttons.is_right_down() {
             if !adjustment.mouse_adjustment.changed_once {
@@ -1750,7 +1799,7 @@ impl Editor {
             let op = Operation::SetAcceleratedYawspeed {
                 bulk_idx,
                 from: adjustment.mouse_adjustment.original_value,
-                to: (*target, *accel),
+                to: (*start, *target, *accel),
             };
 
             self.side_strafe_accelerated_yawspeed_adjustment = None;
@@ -1762,11 +1811,24 @@ impl Editor {
         // Mouse left click to switch mode.
         // This must happen before the delta calculation.
         if mouse.buttons.is_left_down() && !prev_mouse.buttons.is_left_down() {
-            adjustment.change_target = !adjustment.change_target;
+            // Cycling
+            adjustment.mode = match adjustment.mode {
+                AcceleratedYawSpeedAdjustmentMode::Target => {
+                    AcceleratedYawSpeedAdjustmentMode::Acceleration
+                }
+                AcceleratedYawSpeedAdjustmentMode::Acceleration => {
+                    AcceleratedYawSpeedAdjustmentMode::Start
+                }
+                AcceleratedYawSpeedAdjustmentMode::Start => {
+                    AcceleratedYawSpeedAdjustmentMode::Target
+                }
+            };
 
             // After switching mode, we have to reset all of the changes back to the original.
-            *target = adjustment.mouse_adjustment.original_value.0;
-            *accel = adjustment.mouse_adjustment.original_value.1;
+            *start = adjustment.mouse_adjustment.original_value.0;
+            *target = adjustment.mouse_adjustment.original_value.1;
+            *accel = adjustment.mouse_adjustment.original_value.2;
+
             adjustment.mouse_adjustment.changed_once = false;
 
             // Change mouse position so that all of the delta for adjustment is reset.
@@ -1779,6 +1841,34 @@ impl Editor {
             should_invalidate = true;
         }
 
+        // Mouse5 click to copy calculated yawspeed of previous frame.
+        // Mouse5 is more ergonomic.
+        // Happens before delta calculation to override it.
+        if mouse.buttons.is_mouse5_down()
+            && !prev_mouse.buttons.is_mouse5_down()
+            && *target != adjustment.current_yawspeed
+        {
+            adjustment.mouse_adjustment.changed_once = true;
+            *target = adjustment.current_yawspeed;
+
+            // Do this to avoid next tick overriding the value with delta.
+            adjustment.mouse_offset = mouse.pos
+                - IVec2::new(
+                    adjustment.mouse_adjustment.pressed_at.x as i32,
+                    adjustment.mouse_adjustment.pressed_at.y as i32,
+                );
+
+            // Because target along with accel are calculated based on the original input.
+            // That means if we do this on the same mode as target, the target calculation part
+            // will override our value.
+            // So, this mouse5 click only works in accel mode.
+            // The workaround could be overwritteng the original value but that means
+            // We have to apply operation early. Not a good choice.
+            adjustment.mode = AcceleratedYawSpeedAdjustmentMode::Acceleration;
+
+            should_invalidate = true;
+        }
+
         let speed = keyboard.adjustment_speed();
         let delta = adjustment
             .mouse_adjustment
@@ -1787,25 +1877,37 @@ impl Editor {
             * 1.
             * speed;
 
-        if adjustment.change_target {
-            let new_target = (adjustment.mouse_adjustment.original_value.0 + delta).max(0.);
+        match adjustment.mode {
+            AcceleratedYawSpeedAdjustmentMode::Target => {
+                let new_target = (adjustment.mouse_adjustment.original_value.1 + delta).max(0.);
 
-            if *target != new_target {
-                adjustment.mouse_adjustment.changed_once = true;
-                *target = new_target;
-                should_invalidate = true;
+                if *target != new_target {
+                    adjustment.mouse_adjustment.changed_once = true;
+                    *target = new_target;
+                    should_invalidate = true;
+                }
             }
-        } else {
-            // Accel is very delicate. Need to tone it down.
-            let delta = delta / 20.;
-            let new_accel = adjustment.mouse_adjustment.original_value.1 + delta;
+            AcceleratedYawSpeedAdjustmentMode::Acceleration => {
+                // Accel is very delicate. Need to tone it down.
+                let delta = delta / 20.;
+                let new_accel = adjustment.mouse_adjustment.original_value.2 + delta;
 
-            if *accel != new_accel {
-                adjustment.mouse_adjustment.changed_once = true;
-                *accel = new_accel;
-                should_invalidate = true;
+                if *accel != new_accel {
+                    adjustment.mouse_adjustment.changed_once = true;
+                    *accel = new_accel;
+                    should_invalidate = true;
+                }
             }
-        };
+            AcceleratedYawSpeedAdjustmentMode::Start => {
+                let new_start = (adjustment.mouse_adjustment.original_value.0 + delta).max(0.);
+
+                if *start != new_start {
+                    adjustment.mouse_adjustment.changed_once = true;
+                    *start = new_start;
+                    should_invalidate = true;
+                }
+            }
+        }
 
         if should_invalidate {
             self.invalidate(first_frame_idx);
@@ -2154,9 +2256,10 @@ impl Editor {
                     .unwrap();
 
             let accel_yawspeed = bulk.accelerated_yawspeed_mut().unwrap();
-            if (*accel_yawspeed.0, *accel_yawspeed.1) != original_value {
+            if (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2) != original_value {
                 *accel_yawspeed.0 = original_value.0;
                 *accel_yawspeed.1 = original_value.1;
+                *accel_yawspeed.2 = original_value.2;
                 self.invalidate(first_frame_idx);
             }
         }
@@ -3227,20 +3330,7 @@ impl Editor {
         } else {
             let current_frame = &mut branch.frames[frame.frame_idx];
             if *current_frame != frame.frame {
-                // Because we already obtain the correct states in bxt-strafe,
-                // we will restore it back before this wiping it out.
-                // If we don't do this then more IPC stuffs sending trivially deducible data.
-                let accel_yawspeed_value = current_frame.state.accel_yawspeed_value;
-                let prev_accel_yawspeed_target = current_frame.state.prev_accel_yawspeed_target;
-                let prev_accel_yawspeed_accel = current_frame.state.prev_accel_yawspeed_accel;
-                let prev_accel_yawspeed_right = current_frame.state.prev_accel_yawspeed_right;
-
                 *current_frame = frame.frame;
-
-                current_frame.state.accel_yawspeed_value = accel_yawspeed_value;
-                current_frame.state.prev_accel_yawspeed_target = prev_accel_yawspeed_target;
-                current_frame.state.prev_accel_yawspeed_accel = prev_accel_yawspeed_accel;
-                current_frame.state.prev_accel_yawspeed_right = prev_accel_yawspeed_right;
 
                 branch.first_predicted_frame =
                     min(branch.first_predicted_frame, frame.frame_idx + 1);

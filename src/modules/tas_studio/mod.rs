@@ -38,6 +38,7 @@ use crate::handler;
 use crate::hooks::bxt::{OnTasPlaybackFrameData, BXT_IS_TAS_EDITOR_ACTIVE};
 use crate::hooks::engine::con_print;
 use crate::hooks::{bxt, client, engine, sdl};
+use crate::modules::tas_studio::editor::AcceleratedYawSpeedAdjustmentMode;
 use crate::utils::*;
 
 pub struct TasStudio;
@@ -1130,11 +1131,11 @@ fn toggle(marker: MainThreadMarker, what: String) {
         },
         "s50" => ToggleAutoActionTarget::Strafe {
             dir: StrafeDir::Left,
-            type_: StrafeType::AcceleratedYawspeed(210., 10.),
+            type_: StrafeType::AcceleratedYawspeed(0., 210., 10.),
         },
         "s51" => ToggleAutoActionTarget::Strafe {
             dir: StrafeDir::Right,
-            type_: StrafeType::AcceleratedYawspeed(210., 10.),
+            type_: StrafeType::AcceleratedYawspeed(0., 210., 10.),
         },
         "lgagst" => ToggleAutoActionTarget::LeaveGroundAtOptimalSpeed,
         "autojump" => ToggleAutoActionTarget::AutoJump,
@@ -1603,7 +1604,12 @@ pub unsafe fn on_tas_playback_frame(
         // TODO: prev_frame_input, which is not set here, is important.
         let mut strafe_state = bxt_strafe::State::new(&tracer, params, player);
         strafe_state.strafe_cycle_frame_count = data.strafe_cycle_frame_count;
-        // strafe_state.accel_yawspeed_value = data.accel_yawspeed_value;
+        strafe_state.accel_yawspeed_value = data.accel_yawspeed[0];
+        strafe_state.prev_accel_yawspeed_start = data.accel_yawspeed[1];
+        strafe_state.prev_accel_yawspeed_target = data.accel_yawspeed[2];
+        strafe_state.prev_accel_yawspeed_accel = data.accel_yawspeed[3];
+        // LEFT = 0, RIGHT = 1. Very nice. But it is float though.
+        strafe_state.prev_accel_yawspeed_right = data.accel_yawspeed[4] == 1.;
 
         // Get view angles for this frame.
         unsafe {
@@ -1881,8 +1887,8 @@ fn add_frame_bulk_hud_lines(text: &mut Vec<u8>, bulk: &FrameBulk) {
                 StrafeType::ConstYawspeed(yawspeed) => {
                     write!(text, "turn rate: {yawspeed:.0}").unwrap();
                 }
-                StrafeType::AcceleratedYawspeed(target, accel) => {
-                    write!(text, "accel turn: {target:.0} {accel:.0}").unwrap();
+                StrafeType::AcceleratedYawspeed(start, target, accel) => {
+                    write!(text, "accel turn: {start:.0} {target:.0} {accel:.2}").unwrap();
                 }
             }
             text.extend(b")\0");
@@ -2056,10 +2062,10 @@ pub fn draw_hud(marker: MainThreadMarker, draw: &hud::Draw) {
                 info.iWidth / 2 - info.iCharHeight * 3,
                 info.iHeight / 2 + info.iCharHeight * 2,
             ),
-            if side_strafe_accelerated_yawspeed_adjustment.change_target {
-                b"Yawspeed Target\0"
-            } else {
-                b"Yawspeed Acceleration\0"
+            match side_strafe_accelerated_yawspeed_adjustment.mode {
+                AcceleratedYawSpeedAdjustmentMode::Target => b"Yawspeed Target\0",
+                AcceleratedYawSpeedAdjustmentMode::Acceleration => b"Yawspeed Acceleration\0",
+                AcceleratedYawSpeedAdjustmentMode::Start => b"Yawspeed Start\0",
             },
         );
     }

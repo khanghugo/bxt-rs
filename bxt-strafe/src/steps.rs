@@ -421,17 +421,18 @@ impl<S: Step> Step for Strafe<S> {
 
                 let (camera_yaw, entry) = if matches!(
                     type_,
-                    StrafeType::ConstYawspeed(_) | StrafeType::AcceleratedYawspeed(_, _)
+                    StrafeType::ConstYawspeed(_) | StrafeType::AcceleratedYawspeed(_, _, _)
                 ) {
                     let right = matches!(dir, StrafeDir::Right);
 
                     let yawspeed = match type_ {
                         StrafeType::ConstYawspeed(yawspeed) => yawspeed,
-                        StrafeType::AcceleratedYawspeed(target, accel) => {
+                        StrafeType::AcceleratedYawspeed(start, target, accel) => {
                             // Reset value if we have different inputs.
                             // This means that if we split a s5x bulk,
                             // there won't be any side effects.
-                            if target != state.prev_accel_yawspeed_target
+                            if start != state.prev_accel_yawspeed_start
+                                || target != state.prev_accel_yawspeed_target
                                 || accel != state.prev_accel_yawspeed_accel
                                 || right != state.prev_accel_yawspeed_right
                             {
@@ -440,10 +441,11 @@ impl<S: Step> Step for Strafe<S> {
                                 state.accel_yawspeed_value = if accel.is_sign_negative() {
                                     target - accel
                                 } else {
-                                    0. - accel
+                                    start - accel
                                 };
 
                                 // Update so next time we know what to compare against.
+                                state.prev_accel_yawspeed_start = start;
                                 state.prev_accel_yawspeed_target = target;
                                 state.prev_accel_yawspeed_accel = accel;
                                 state.prev_accel_yawspeed_right = right;
@@ -451,10 +453,10 @@ impl<S: Step> Step for Strafe<S> {
 
                             state.accel_yawspeed_value = if accel.is_sign_negative() {
                                 // accel is negative so addition is subtraction.
-                                (state.accel_yawspeed_value + accel).max(0.)
+                                (state.accel_yawspeed_value + accel).max(start)
                             } else {
-                                // .max(0.) to avoid negative and be consistent with HLStrafe.
-                                (state.accel_yawspeed_value + accel).max(0.).min(target)
+                                // .max(start) to avoid negative and be consistent with HLStrafe.
+                                (state.accel_yawspeed_value + accel).max(start).min(target)
                             };
 
                             state.accel_yawspeed_value
@@ -584,6 +586,16 @@ impl<S: Step> Step for ResetFields<S> {
             }))
         ) {
             state.strafe_cycle_frame_count = 0;
+        }
+
+        if !matches!(
+            frame_bulk.auto_actions.movement,
+            Some(AutoMovement::Strafe(StrafeSettings {
+                type_: StrafeType::AcceleratedYawspeed(_, _, _),
+                ..
+            }))
+        ) {
+            state.accel_yawspeed_value = 0.;
         }
 
         self.0

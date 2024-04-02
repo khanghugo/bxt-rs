@@ -26,11 +26,11 @@ pub trait FrameBulkExt {
     fn yawspeed_mut(&mut self) -> Option<&mut f32>;
 
     /// Return a reference to the target yawspeed and acceleration stored in the framebulk, if any.
-    fn accelerated_yawspeed(&self) -> Option<(&f32, &f32)>;
+    fn accelerated_yawspeed(&self) -> Option<(&f32, &f32, &f32)>;
 
     /// Return a mutable reference to the target yawspeed and acceleration stored in the framebulk,
     /// if any.
-    fn accelerated_yawspeed_mut(&mut self) -> Option<(&mut f32, &mut f32)>;
+    fn accelerated_yawspeed_mut(&mut self) -> Option<(&mut f32, &mut f32, &mut f32)>;
 }
 
 impl FrameBulkExt for FrameBulk {
@@ -96,22 +96,22 @@ impl FrameBulkExt for FrameBulk {
         }
     }
 
-    fn accelerated_yawspeed(&self) -> Option<(&f32, &f32)> {
+    fn accelerated_yawspeed(&self) -> Option<(&f32, &f32, &f32)> {
         match &self.auto_actions.movement {
             Some(AutoMovement::Strafe(StrafeSettings {
-                type_: StrafeType::AcceleratedYawspeed(target, accel),
+                type_: StrafeType::AcceleratedYawspeed(start, target, accel),
                 ..
-            })) => Some((target, accel)),
+            })) => Some((start, target, accel)),
             _ => None,
         }
     }
 
-    fn accelerated_yawspeed_mut(&mut self) -> Option<(&mut f32, &mut f32)> {
+    fn accelerated_yawspeed_mut(&mut self) -> Option<(&mut f32, &mut f32, &mut f32)> {
         match &mut self.auto_actions.movement {
             Some(AutoMovement::Strafe(StrafeSettings {
-                type_: StrafeType::AcceleratedYawspeed(target, accel),
+                type_: StrafeType::AcceleratedYawspeed(start, target, accel),
                 ..
-            })) => Some((target, accel)),
+            })) => Some((start, target, accel)),
             _ => None,
         }
     }

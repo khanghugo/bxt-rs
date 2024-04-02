@@ -94,8 +94,8 @@ pub enum Operation {
     },
     SetAcceleratedYawspeed {
         bulk_idx: usize,
-        from: (f32, f32),
-        to: (f32, f32),
+        from: (f32, f32, f32),
+        to: (f32, f32, f32),
     },
     SetFrameTime {
         bulk_idx: usize,
@@ -386,12 +386,12 @@ impl Operation {
                     .expect("frame bulk should have target yawspeed and acceleration");
                 assert_eq!(
                     from,
-                    (*accel_yawspeed.0, *accel_yawspeed.1),
+                    (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2),
                     "accelerated yawspeed values don't match"
                 );
 
                 if from != to {
-                    (*accel_yawspeed.0, *accel_yawspeed.1) = to;
+                    (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2) = to;
                     return Some(first_frame_idx);
                 }
             }
@@ -693,12 +693,12 @@ impl Operation {
                     .expect("frame bulk should have target yawspeed and acceleration");
                 assert_eq!(
                     to,
-                    (*accel_yawspeed.0, *accel_yawspeed.1),
+                    (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2),
                     "accelerated yawspeed values don't match"
                 );
 
                 if from != to {
-                    (*accel_yawspeed.0, *accel_yawspeed.1) = from;
+                    (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2) = from;
                     return Some(first_frame_idx);
                 }
             }
@@ -1268,33 +1268,33 @@ s41-------|------|------|0.004|70|-|10
         check_op(
             "\
 ----------|------|------|0.004|10|-|6
-s50-------|------|------|0.004|0 0|-|10
-s51-------|------|------|0.004|70 10|-|10",
+s50-------|------|------|0.004|0 0 0|-|10
+s51-------|------|------|0.004|0 70 10|-|10",
             Operation::SetAcceleratedYawspeed {
                 bulk_idx: 1,
-                from: (0., 0.),
-                to: (69., 69.),
+                from: (0., 0., 0.),
+                to: (0., 69., 69.),
             },
             "\
 ----------|------|------|0.004|10|-|6
-s50-------|------|------|0.004|69 69|-|10
+s50-------|------|------|0.004|0 69 69|-|10
 s51-------|------|------|0.004|70 10|-|10",
         );
 
         check_op(
             "\
 ----------|------|------|0.004|10|-|6
-s50-------|------|------|0.004|0 0|-|10
+s50-------|------|------|0.004|0 0 0|-|10
 s51-------|------|------|0.004|70 10|-|10",
             Operation::SetAcceleratedYawspeed {
                 bulk_idx: 1,
-                from: (0., 0.),
-                to: (69., -11.42),
+                from: (0., 0., 0.),
+                to: (0., 69., -11.42),
             },
             "\
 ----------|------|------|0.004|10|-|6
-s50-------|------|------|0.004|69 -11.42|-|10
-s51-------|------|------|0.004|70 10|-|10",
+s50-------|------|------|0.004|0 69 -11.42|-|10
+s51-------|------|------|0.004|0 70 10|-|10",
         );
     }
 }

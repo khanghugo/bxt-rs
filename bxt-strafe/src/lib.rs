@@ -134,12 +134,12 @@ pub struct State {
     // `0` to `count - 1`.
     pub strafe_cycle_frame_count: u32,
     // Accelerated yaw speed specifics
-    pub accel_yawspeed_value: f32,
+    pub max_accel_yaw_offset_value: f32,
     // These values are to indicate whether we are in a "different" frame bulk.
-    pub prev_accel_yawspeed_start: f32,
-    pub prev_accel_yawspeed_target: f32,
-    pub prev_accel_yawspeed_accel: f32,
-    pub prev_accel_yawspeed_right: bool,
+    pub prev_max_accel_yaw_offset_start: f32,
+    pub prev_max_accel_yaw_offset_target: f32,
+    pub prev_max_accel_yaw_offset_accel: f32,
+    pub prev_max_accel_yaw_offset_right: bool,
 }
 
 impl State {
@@ -152,11 +152,11 @@ impl State {
             jumped: false,
             move_traces: ArrayVec::new(),
             strafe_cycle_frame_count: 0,
-            accel_yawspeed_value: 0.,
-            prev_accel_yawspeed_start: 0.,
-            prev_accel_yawspeed_target: 0.,
-            prev_accel_yawspeed_accel: 0.,
-            prev_accel_yawspeed_right: false,
+            max_accel_yaw_offset_value: 0.,
+            prev_max_accel_yaw_offset_start: 0.,
+            prev_max_accel_yaw_offset_target: 0.,
+            prev_max_accel_yaw_offset_accel: 0.,
+            prev_max_accel_yaw_offset_right: false,
         };
 
         rv.update_place(tracer);

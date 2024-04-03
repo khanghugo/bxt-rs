@@ -350,34 +350,36 @@ impl<S: Step> Step for Strafe<S> {
                 frame_bulk.auto_actions.movement
             {
                 let theta = match type_ {
-                    StrafeType::MaxAccel => match dir {
-                        StrafeDir::Left => max_accel_theta(parameters, &state),
-                        StrafeDir::Right => -max_accel_theta(parameters, &state),
-                        StrafeDir::Yaw(yaw) => {
-                            max_accel_into_yaw_theta(parameters, &state, yaw.to_radians())
+                    StrafeType::MaxAccel | StrafeType::MaxAccelerationYawOffset(_, _, _) => {
+                        match dir {
+                            StrafeDir::Left => max_accel_theta(parameters, &state),
+                            StrafeDir::Right => -max_accel_theta(parameters, &state),
+                            StrafeDir::Yaw(yaw) => {
+                                max_accel_into_yaw_theta(parameters, &state, yaw.to_radians())
+                            }
+                            StrafeDir::LeftRight(count) | StrafeDir::RightLeft(count) => {
+                                let count = count.get().min(u32::MAX / 2);
+
+                                if state.strafe_cycle_frame_count >= count * 2 {
+                                    state.strafe_cycle_frame_count = 0;
+                                }
+
+                                let turn_other_way = (state.strafe_cycle_frame_count / count) > 0;
+                                state.strafe_cycle_frame_count += 1;
+
+                                let mut angle = max_accel_theta(parameters, &state);
+                                if matches!(dir, StrafeDir::RightLeft(_)) {
+                                    angle = -angle;
+                                }
+                                if turn_other_way {
+                                    angle = -angle;
+                                }
+
+                                angle
+                            }
+                            _ => 0.,
                         }
-                        StrafeDir::LeftRight(count) | StrafeDir::RightLeft(count) => {
-                            let count = count.get().min(u32::MAX / 2);
-
-                            if state.strafe_cycle_frame_count >= count * 2 {
-                                state.strafe_cycle_frame_count = 0;
-                            }
-
-                            let turn_other_way = (state.strafe_cycle_frame_count / count) > 0;
-                            state.strafe_cycle_frame_count += 1;
-
-                            let mut angle = max_accel_theta(parameters, &state);
-                            if matches!(dir, StrafeDir::RightLeft(_)) {
-                                angle = -angle;
-                            }
-                            if turn_other_way {
-                                angle = -angle;
-                            }
-
-                            angle
-                        }
-                        _ => 0.,
-                    },
+                    }
                     StrafeType::MaxAngle => match dir {
                         StrafeDir::Left => max_angle_theta(parameters, &state),
                         StrafeDir::Right => -max_angle_theta(parameters, &state),
@@ -419,51 +421,8 @@ impl<S: Step> Step for Strafe<S> {
                     Vct::MAX_SPEED_CAP
                 );
 
-                let (camera_yaw, entry) = if matches!(
-                    type_,
-                    StrafeType::ConstYawspeed(_) | StrafeType::AcceleratedYawspeed(_, _, _)
-                ) {
+                let (camera_yaw, entry) = if let StrafeType::ConstYawspeed(yawspeed) = type_ {
                     let right = matches!(dir, StrafeDir::Right);
-
-                    let yawspeed = match type_ {
-                        StrafeType::ConstYawspeed(yawspeed) => yawspeed,
-                        StrafeType::AcceleratedYawspeed(start, target, accel) => {
-                            // Reset value if we have different inputs.
-                            // This means that if we split a s5x bulk,
-                            // there won't be any side effects.
-                            if start != state.prev_accel_yawspeed_start
-                                || target != state.prev_accel_yawspeed_target
-                                || accel != state.prev_accel_yawspeed_accel
-                                || right != state.prev_accel_yawspeed_right
-                            {
-                                // Terrible hack to have 0 as the start and target at the end and
-                                // vice versa.
-                                state.accel_yawspeed_value = if accel.is_sign_negative() {
-                                    target - accel
-                                } else {
-                                    start - accel
-                                };
-
-                                // Update so next time we know what to compare against.
-                                state.prev_accel_yawspeed_start = start;
-                                state.prev_accel_yawspeed_target = target;
-                                state.prev_accel_yawspeed_accel = accel;
-                                state.prev_accel_yawspeed_right = right;
-                            };
-
-                            state.accel_yawspeed_value = if accel.is_sign_negative() {
-                                // accel is negative so addition is subtraction.
-                                (state.accel_yawspeed_value + accel).max(start)
-                            } else {
-                                // .max(start) to avoid negative and be consistent with HLStrafe.
-                                (state.accel_yawspeed_value + accel).max(start).min(target)
-                            };
-
-                            state.accel_yawspeed_value
-                        }
-                        _ => unreachable!(),
-                    };
-
                     let yaw_delta = (yawspeed * parameters.frame_time).to_radians();
 
                     let accel_angle = match state.place {
@@ -488,6 +447,12 @@ impl<S: Step> Step for Strafe<S> {
                     let entry = Vct::get().find_best((vel_yaw + theta) - camera_yaw);
 
                     (camera_yaw, entry)
+                };
+
+                let camera_yaw = if matches!(type_, StrafeType::MaxAccelerationYawOffset(_, _, _)) {
+                    camera_yaw + angle_mod_rad(state.max_accel_yaw_offset_value.to_radians())
+                } else {
+                    camera_yaw
                 };
 
                 input.yaw = camera_yaw;
@@ -588,14 +553,47 @@ impl<S: Step> Step for ResetFields<S> {
             state.strafe_cycle_frame_count = 0;
         }
 
-        if !matches!(
-            frame_bulk.auto_actions.movement,
-            Some(AutoMovement::Strafe(StrafeSettings {
-                type_: StrafeType::AcceleratedYawspeed(_, _, _),
-                ..
-            }))
-        ) {
-            state.accel_yawspeed_value = 0.;
+        // If we have some acceleration, then this kicks in.
+        // It will preserve the final value across split segments.
+        if let Some(AutoMovement::Strafe(StrafeSettings {
+            type_: StrafeType::MaxAccelerationYawOffset(start, target, accel),
+            dir,
+        })) = frame_bulk.auto_actions.movement
+        {
+            let right = matches!(dir, StrafeDir::Right);
+
+            // Reset value if we have different inputs.
+            // This means that if we split a s5x bulk,
+            // there won't be any side effects.
+            if start != state.prev_max_accel_yaw_offset_start
+                || target != state.prev_max_accel_yaw_offset_target
+                || accel != state.prev_max_accel_yaw_offset_accel
+                || right != state.prev_max_accel_yaw_offset_right
+            {
+                // Terrible hack to have 0 as the start and target at the end and
+                // vice versa.
+                state.max_accel_yaw_offset_value = if accel.is_sign_negative() {
+                    target - accel
+                } else {
+                    start - accel
+                };
+
+                // Update so next time we know what to compare against.
+                state.prev_max_accel_yaw_offset_start = start;
+                state.prev_max_accel_yaw_offset_target = target;
+                state.prev_max_accel_yaw_offset_accel = accel;
+                state.prev_max_accel_yaw_offset_right = right;
+            };
+
+            state.max_accel_yaw_offset_value = if accel.is_sign_negative() {
+                // accel is negative so addition is subtraction.
+                (state.max_accel_yaw_offset_value + accel).max(start)
+            } else {
+                // .max(start) to avoid negative and be consistent with HLStrafe.
+                (state.max_accel_yaw_offset_value + accel)
+                    .max(start)
+                    .min(target)
+            };
         }
 
         self.0

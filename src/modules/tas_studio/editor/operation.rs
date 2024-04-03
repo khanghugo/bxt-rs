@@ -92,7 +92,7 @@ pub enum Operation {
         from: f32,
         to: f32,
     },
-    SetAcceleratedYawspeed {
+    SetMaxAccelerationYawOffset {
         bulk_idx: usize,
         from: (f32, f32, f32),
         to: (f32, f32, f32),
@@ -376,13 +376,13 @@ impl Operation {
                 *yawspeed = to;
                 return Some(first_frame_idx);
             }
-            Operation::SetAcceleratedYawspeed { bulk_idx, from, to } => {
+            Operation::SetMaxAccelerationYawOffset { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
 
                 let accel_yawspeed = bulk
-                    .accelerated_yawspeed_mut()
+                    .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have target yawspeed and acceleration");
                 assert_eq!(
                     from,
@@ -683,13 +683,13 @@ impl Operation {
                 *yawspeed = from;
                 return Some(first_frame_idx);
             }
-            Operation::SetAcceleratedYawspeed { bulk_idx, from, to } => {
+            Operation::SetMaxAccelerationYawOffset { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
 
                 let accel_yawspeed = bulk
-                    .accelerated_yawspeed_mut()
+                    .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have target yawspeed and acceleration");
                 assert_eq!(
                     to,
@@ -1270,7 +1270,7 @@ s41-------|------|------|0.004|70|-|10
 ----------|------|------|0.004|10|-|6
 s50-------|------|------|0.004|0 0 0|-|10
 s51-------|------|------|0.004|0 70 10|-|10",
-            Operation::SetAcceleratedYawspeed {
+            Operation::SetMaxAccelerationYawOffset {
                 bulk_idx: 1,
                 from: (0., 0., 0.),
                 to: (0., 69., 69.),
@@ -1278,15 +1278,15 @@ s51-------|------|------|0.004|0 70 10|-|10",
             "\
 ----------|------|------|0.004|10|-|6
 s50-------|------|------|0.004|0 69 69|-|10
-s51-------|------|------|0.004|70 10|-|10",
+s51-------|------|------|0.004|0 70 10|-|10",
         );
 
         check_op(
             "\
 ----------|------|------|0.004|10|-|6
 s50-------|------|------|0.004|0 0 0|-|10
-s51-------|------|------|0.004|70 10|-|10",
-            Operation::SetAcceleratedYawspeed {
+s51-------|------|------|0.004|0 70 10|-|10",
+            Operation::SetMaxAccelerationYawOffset {
                 bulk_idx: 1,
                 from: (0., 0., 0.),
                 to: (0., 69., -11.42),

@@ -294,7 +294,7 @@ mod tests {
         let lines = [Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::AcceleratedYawspeed(0., 210., 10.),
+                    type_: StrafeType::MaxAccelerationYawOffset(0., 210., 10.),
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -319,7 +319,7 @@ mod tests {
             Line::FrameBulk(FrameBulk {
                 auto_actions: AutoActions {
                     movement: Some(AutoMovement::Strafe(StrafeSettings {
-                        type_: StrafeType::AcceleratedYawspeed(0., 210., 10.),
+                        type_: StrafeType::MaxAccelerationYawOffset(0., 210., 10.),
                         dir: StrafeDir::Left,
                     })),
                     leave_ground_action: None,
@@ -338,7 +338,7 @@ mod tests {
             Line::FrameBulk(FrameBulk {
                 auto_actions: AutoActions {
                     movement: Some(AutoMovement::Strafe(StrafeSettings {
-                        type_: StrafeType::AcceleratedYawspeed(0., 210., 10.),
+                        type_: StrafeType::MaxAccelerationYawOffset(0., 210., 10.),
                         dir: StrafeDir::Left,
                     })),
                     leave_ground_action: None,
@@ -359,7 +359,7 @@ mod tests {
         let simulator2 = Simulator::new(&DummyTracer, &frames, &lines2);
         frames.append(&mut simulator2.collect::<Vec<Frame>>());
 
-        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 50.);
+        assert_eq!(frames.last().unwrap().state.max_accel_yaw_offset_value, 50.);
     }
 
     #[test]
@@ -369,7 +369,7 @@ mod tests {
         let mut lines = vec![Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::AcceleratedYawspeed(0., 200., 10.),
+                    type_: StrafeType::MaxAccelerationYawOffset(0., 200., 10.),
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -393,7 +393,7 @@ mod tests {
         lines.push(Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::AcceleratedYawspeed(0., 210., 10.),
+                    type_: StrafeType::MaxAccelerationYawOffset(0., 210., 10.),
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -412,13 +412,13 @@ mod tests {
 
         let simulator = Simulator::new(&DummyTracer, &frames, &lines);
         frames.append(&mut simulator.collect::<Vec<Frame>>());
-        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 90.);
+        assert_eq!(frames.last().unwrap().state.max_accel_yaw_offset_value, 90.);
 
         // reset due to accel change
         lines.push(Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::AcceleratedYawspeed(0., 210., 9.),
+                    type_: StrafeType::MaxAccelerationYawOffset(0., 210., 9.),
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -437,13 +437,13 @@ mod tests {
 
         let simulator = Simulator::new(&DummyTracer, &frames, &lines);
         frames.append(&mut simulator.collect::<Vec<Frame>>());
-        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 72.);
+        assert_eq!(frames.last().unwrap().state.max_accel_yaw_offset_value, 72.);
 
         // reset due to direction change
         lines.push(Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::AcceleratedYawspeed(0., 210., 9.),
+                    type_: StrafeType::MaxAccelerationYawOffset(0., 210., 9.),
                     dir: StrafeDir::Right,
                 })),
                 leave_ground_action: None,
@@ -462,13 +462,13 @@ mod tests {
 
         let simulator = Simulator::new(&DummyTracer, &frames, &lines);
         frames.append(&mut simulator.collect::<Vec<Frame>>());
-        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 72.);
+        assert_eq!(frames.last().unwrap().state.max_accel_yaw_offset_value, 72.);
 
         // reset due to start change
         lines.push(Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::AcceleratedYawspeed(10., 210., 9.),
+                    type_: StrafeType::MaxAccelerationYawOffset(10., 210., 9.),
                     dir: StrafeDir::Right,
                 })),
                 leave_ground_action: None,
@@ -487,6 +487,6 @@ mod tests {
 
         let simulator = Simulator::new(&DummyTracer, &frames, &lines);
         frames.append(&mut simulator.collect::<Vec<Frame>>());
-        assert_eq!(frames.last().unwrap().state.accel_yawspeed_value, 82.);
+        assert_eq!(frames.last().unwrap().state.max_accel_yaw_offset_value, 82.);
     }
 }

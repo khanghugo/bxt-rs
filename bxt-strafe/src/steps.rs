@@ -350,36 +350,34 @@ impl<S: Step> Step for Strafe<S> {
                 frame_bulk.auto_actions.movement
             {
                 let theta = match type_ {
-                    StrafeType::MaxAccel | StrafeType::MaxAccelerationYawOffset(_, _, _) => {
-                        match dir {
-                            StrafeDir::Left => max_accel_theta(parameters, &state),
-                            StrafeDir::Right => -max_accel_theta(parameters, &state),
-                            StrafeDir::Yaw(yaw) => {
-                                max_accel_into_yaw_theta(parameters, &state, yaw.to_radians())
-                            }
-                            StrafeDir::LeftRight(count) | StrafeDir::RightLeft(count) => {
-                                let count = count.get().min(u32::MAX / 2);
-
-                                if state.strafe_cycle_frame_count >= count * 2 {
-                                    state.strafe_cycle_frame_count = 0;
-                                }
-
-                                let turn_other_way = (state.strafe_cycle_frame_count / count) > 0;
-                                state.strafe_cycle_frame_count += 1;
-
-                                let mut angle = max_accel_theta(parameters, &state);
-                                if matches!(dir, StrafeDir::RightLeft(_)) {
-                                    angle = -angle;
-                                }
-                                if turn_other_way {
-                                    angle = -angle;
-                                }
-
-                                angle
-                            }
-                            _ => 0.,
+                    StrafeType::MaxAccel | StrafeType::MaxAccelYawOffset(_, _, _) => match dir {
+                        StrafeDir::Left => max_accel_theta(parameters, &state),
+                        StrafeDir::Right => -max_accel_theta(parameters, &state),
+                        StrafeDir::Yaw(yaw) => {
+                            max_accel_into_yaw_theta(parameters, &state, yaw.to_radians())
                         }
-                    }
+                        StrafeDir::LeftRight(count) | StrafeDir::RightLeft(count) => {
+                            let count = count.get().min(u32::MAX / 2);
+
+                            if state.strafe_cycle_frame_count >= count * 2 {
+                                state.strafe_cycle_frame_count = 0;
+                            }
+
+                            let turn_other_way = (state.strafe_cycle_frame_count / count) > 0;
+                            state.strafe_cycle_frame_count += 1;
+
+                            let mut angle = max_accel_theta(parameters, &state);
+                            if matches!(dir, StrafeDir::RightLeft(_)) {
+                                angle = -angle;
+                            }
+                            if turn_other_way {
+                                angle = -angle;
+                            }
+
+                            angle
+                        }
+                        _ => 0.,
+                    },
                     StrafeType::MaxAngle => match dir {
                         StrafeDir::Left => max_angle_theta(parameters, &state),
                         StrafeDir::Right => -max_angle_theta(parameters, &state),
@@ -449,8 +447,14 @@ impl<S: Step> Step for Strafe<S> {
                     (camera_yaw, entry)
                 };
 
-                let camera_yaw = if matches!(type_, StrafeType::MaxAccelerationYawOffset(_, _, _)) {
-                    camera_yaw + angle_mod_rad(state.max_accel_yaw_offset_value.to_radians())
+                let camera_yaw = if matches!(type_, StrafeType::MaxAccelYawOffset(_, _, _)) {
+                    // theta < 0. = is right
+                    // If is right then we decreases yaw by offset.
+                    // Therefore, positive offset in framebulk mean going more on that side.
+                    let offset = state.max_accel_yaw_offset_value.to_radians();
+                    let offset = if theta < 0. { -offset } else { offset };
+
+                    camera_yaw + angle_mod_rad(offset)
                 } else {
                     camera_yaw
                 };
@@ -556,7 +560,7 @@ impl<S: Step> Step for ResetFields<S> {
         // If we have some acceleration, then this kicks in.
         // It will preserve the final value across split segments.
         if let Some(AutoMovement::Strafe(StrafeSettings {
-            type_: StrafeType::MaxAccelerationYawOffset(start, target, accel),
+            type_: StrafeType::MaxAccelYawOffset(start, target, accel),
             dir,
         })) = frame_bulk.auto_actions.movement
         {

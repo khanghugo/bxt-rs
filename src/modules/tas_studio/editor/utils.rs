@@ -27,11 +27,20 @@ pub trait FrameBulkExt {
 
     /// Return a reference to the starting yaw offset, target yaw offset, and acceleration stored in
     /// the framebulk, if any.
-    fn max_accel_yaw_offset(&self) -> Option<(&f32, &f32, &f32)>;
+    fn max_accel_yaw_offset(&self)
+        -> Option<(&f32, &f32, &f32, Option<&f32>, Option<&NonZeroU32>)>;
 
     // Return a mutable reference to the starting yaw offset, target yaw offset, and acceleration
     // stored in the framebulk, if any.
-    fn max_accel_yaw_offset_mut(&mut self) -> Option<(&mut f32, &mut f32, &mut f32)>;
+    fn max_accel_yaw_offset_mut(
+        &mut self,
+    ) -> Option<(
+        &mut f32,
+        &mut f32,
+        &mut f32,
+        Option<&mut f32>,
+        Option<&mut NonZeroU32>,
+    )>;
 }
 
 impl FrameBulkExt for FrameBulk {
@@ -97,22 +106,54 @@ impl FrameBulkExt for FrameBulk {
         }
     }
 
-    fn max_accel_yaw_offset(&self) -> Option<(&f32, &f32, &f32)> {
+    fn max_accel_yaw_offset(
+        &self,
+    ) -> Option<(&f32, &f32, &f32, Option<&f32>, Option<&NonZeroU32>)> {
         match &self.auto_actions.movement {
             Some(AutoMovement::Strafe(StrafeSettings {
-                type_: StrafeType::MaxAccelerationYawOffset(start, target, accel),
-                ..
-            })) => Some((start, target, accel)),
+                type_: StrafeType::MaxAccelYawOffset(start, target, accel),
+                dir,
+            })) => Some((
+                start,
+                target,
+                accel,
+                match dir {
+                    StrafeDir::Yaw(yaw) | StrafeDir::Line { yaw } => Some(yaw),
+                    _ => None,
+                },
+                match dir {
+                    StrafeDir::LeftRight(count) | StrafeDir::RightLeft(count) => Some(count),
+                    _ => None,
+                },
+            )),
             _ => None,
         }
     }
 
-    fn max_accel_yaw_offset_mut(&mut self) -> Option<(&mut f32, &mut f32, &mut f32)> {
+    fn max_accel_yaw_offset_mut(
+        &mut self,
+    ) -> Option<(
+        &mut f32,
+        &mut f32,
+        &mut f32,
+        Option<&mut f32>,
+        Option<&mut NonZeroU32>,
+    )> {
         match &mut self.auto_actions.movement {
             Some(AutoMovement::Strafe(StrafeSettings {
-                type_: StrafeType::MaxAccelerationYawOffset(start, target, accel),
-                ..
-            })) => Some((start, target, accel)),
+                type_: StrafeType::MaxAccelYawOffset(start, target, accel),
+                dir,
+            })) => {
+                let (alt1, alt2) = match dir {
+                    StrafeDir::Yaw(yaw) | StrafeDir::Line { yaw } => (Some(yaw), None),
+                    StrafeDir::LeftRight(count) | StrafeDir::RightLeft(count) => {
+                        (None, Some(count))
+                    }
+                    _ => (None, None),
+                };
+
+                Some((start, target, accel, alt1, alt2))
+            }
             _ => None,
         }
     }

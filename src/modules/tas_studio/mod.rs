@@ -38,7 +38,7 @@ use crate::handler;
 use crate::hooks::bxt::{OnTasPlaybackFrameData, BXT_IS_TAS_EDITOR_ACTIVE};
 use crate::hooks::engine::con_print;
 use crate::hooks::{bxt, client, engine, sdl};
-use crate::modules::tas_studio::editor::MaxAccelerationYawOffsetAdjustmentMode;
+use crate::modules::tas_studio::editor::MaxAccelYawOffsetMode;
 use crate::utils::*;
 
 pub struct TasStudio;
@@ -1131,11 +1131,11 @@ fn toggle(marker: MainThreadMarker, what: String) {
         },
         "s50" => ToggleAutoActionTarget::Strafe {
             dir: StrafeDir::Left,
-            type_: StrafeType::MaxAccelerationYawOffset(0., 0., 0.),
+            type_: StrafeType::MaxAccelYawOffset(0., 0., 0.),
         },
         "s51" => ToggleAutoActionTarget::Strafe {
             dir: StrafeDir::Right,
-            type_: StrafeType::MaxAccelerationYawOffset(0., 0., 0.),
+            type_: StrafeType::MaxAccelYawOffset(0., 0., 0.),
         },
         "lgagst" => ToggleAutoActionTarget::LeaveGroundAtOptimalSpeed,
         "autojump" => ToggleAutoActionTarget::AutoJump,
@@ -1887,7 +1887,7 @@ fn add_frame_bulk_hud_lines(text: &mut Vec<u8>, bulk: &FrameBulk) {
                 StrafeType::ConstYawspeed(yawspeed) => {
                     write!(text, "turn rate: {yawspeed:.0}").unwrap();
                 }
-                StrafeType::MaxAccelerationYawOffset(start, target, accel) => {
+                StrafeType::MaxAccelYawOffset(start, target, accel) => {
                     // The values are so tiny that only this would make it sensible.
                     let start = start * 100.;
                     let target = target * 100.;
@@ -2067,10 +2067,11 @@ pub fn draw_hud(marker: MainThreadMarker, draw: &hud::Draw) {
                 info.iHeight / 2 + info.iCharHeight * 2,
             ),
             match side_strafe_accelerated_yawspeed_adjustment.mode {
-                MaxAccelerationYawOffsetAdjustmentMode::StartAndTarget => b"Start and Target\0",
-                MaxAccelerationYawOffsetAdjustmentMode::Target => b"Target\0",
-                MaxAccelerationYawOffsetAdjustmentMode::Acceleration => b"Acceleration\0",
-                MaxAccelerationYawOffsetAdjustmentMode::Start => b"Start\0",
+                MaxAccelYawOffsetMode::StartAndTarget => b"Start and Target\0",
+                MaxAccelYawOffsetMode::Target => b"Target\0",
+                MaxAccelYawOffsetMode::Acceleration => b"Acceleration\0",
+                MaxAccelYawOffsetMode::Start => b"Start\0",
+                MaxAccelYawOffsetMode::Alt => b"Alt\0",
             },
         );
     }

@@ -94,8 +94,8 @@ pub enum Operation {
     },
     SetMaxAccelerationYawOffset {
         bulk_idx: usize,
-        from: (f32, f32, f32),
-        to: (f32, f32, f32),
+        from: (f32, f32, f32, Option<f32>, Option<NonZeroU32>),
+        to: (f32, f32, f32, Option<f32>, Option<NonZeroU32>),
     },
     SetFrameTime {
         bulk_idx: usize,
@@ -381,17 +381,32 @@ impl Operation {
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
 
-                let accel_yawspeed = bulk
+                let values = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have target yawspeed and acceleration");
                 assert_eq!(
                     from,
-                    (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2),
+                    (
+                        *values.0,
+                        *values.1,
+                        *values.2,
+                        values.3.as_deref().copied(),
+                        values.4.as_deref().copied()
+                    ),
                     "accelerated yawspeed values don't match"
                 );
 
                 if from != to {
-                    (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2) = to;
+                    (*values.0, *values.1, *values.2) = (to.0, to.1, to.2);
+
+                    if let (Some(yaw), Some(to_yaw)) = (values.3, to.3) {
+                        *yaw = to_yaw;
+                    }
+
+                    if let (Some(count), Some(to_count)) = (values.4, to.4) {
+                        *count = to_count;
+                    }
+
                     return Some(first_frame_idx);
                 }
             }
@@ -688,17 +703,32 @@ impl Operation {
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
 
-                let accel_yawspeed = bulk
+                let values = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have target yawspeed and acceleration");
                 assert_eq!(
                     to,
-                    (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2),
+                    (
+                        *values.0,
+                        *values.1,
+                        *values.2,
+                        values.3.as_deref().copied(),
+                        values.4.as_deref().copied()
+                    ),
                     "accelerated yawspeed values don't match"
                 );
 
                 if from != to {
-                    (*accel_yawspeed.0, *accel_yawspeed.1, *accel_yawspeed.2) = from;
+                    (*values.0, *values.1, *values.2) = (from.0, from.1, from.2);
+
+                    if let (Some(yaw), Some(from_yaw)) = (values.3, from.3) {
+                        *yaw = from_yaw;
+                    }
+
+                    if let (Some(count), Some(from_count)) = (values.4, from.4) {
+                        *count = from_count;
+                    }
+
                     return Some(first_frame_idx);
                 }
             }
@@ -1268,33 +1298,33 @@ s41-------|------|------|0.004|70|-|10
         check_op(
             "\
 ----------|------|------|0.004|10|-|6
-s50-------|------|------|0.004|0 0 0|-|10
-s51-------|------|------|0.004|0 70 10|-|10",
+s50-------|------|------|0.004|- 0 0 0|-|10
+s51-------|------|------|0.004|- 0 70 10|-|10",
             Operation::SetMaxAccelerationYawOffset {
                 bulk_idx: 1,
-                from: (0., 0., 0.),
-                to: (0., 69., 69.),
+                from: (0., 0., 0., None, None),
+                to: (0., 69., 69., None, None),
             },
             "\
 ----------|------|------|0.004|10|-|6
-s50-------|------|------|0.004|0 69 69|-|10
-s51-------|------|------|0.004|0 70 10|-|10",
+s50-------|------|------|0.004|- 0 69 69|-|10
+s51-------|------|------|0.004|- 0 70 10|-|10",
         );
 
         check_op(
             "\
 ----------|------|------|0.004|10|-|6
-s50-------|------|------|0.004|0 0 0|-|10
-s51-------|------|------|0.004|0 70 10|-|10",
+s50-------|------|------|0.004|- 0 0 0|-|10
+s51-------|------|------|0.004|- 0 70 10|-|10",
             Operation::SetMaxAccelerationYawOffset {
                 bulk_idx: 1,
-                from: (0., 0., 0.),
-                to: (0., 69., -11.42),
+                from: (0., 0., 0., None, None),
+                to: (0., 69., -11.42, None, None),
             },
             "\
 ----------|------|------|0.004|10|-|6
-s50-------|------|------|0.004|0 69 -11.42|-|10
-s51-------|------|------|0.004|0 70 10|-|10",
+s50-------|------|------|0.004|- 0 69 -11.42|-|10
+s51-------|------|------|0.004|- 0 70 10|-|10",
         );
     }
 }

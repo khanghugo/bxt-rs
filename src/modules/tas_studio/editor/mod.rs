@@ -1023,46 +1023,43 @@ impl Editor {
                                     // adjustment_dir.
                                     // Then match StrafeType to get values for alt.
                                     match dir {
-                                        StrafeDir::Left | StrafeDir::Right | StrafeDir::Best => {
-                                            let adjustment_dir = if matches!(dir, StrafeDir::Right)
-                                            {
+                                    StrafeDir::Left | StrafeDir::Right | StrafeDir::Best => {
+                                        let adjustment_dir = if matches!(dir, StrafeDir::Right) {
+                                            -adjustment_dir
+                                        } else {
+                                            adjustment_dir
+                                        };
+
+                                        (
+                                            MaxAccelYawOffsetMode::StartAndTarget,
+                                            adjustment_dir,
+                                            MaxAccelYawoffsetAlt::None,
+                                        )
+                                    }
+                                    StrafeDir::Yaw(yaw) | StrafeDir::Line { yaw } => (
+                                        MaxAccelYawOffsetMode::Alt,
+                                        adjustment_dir,
+                                        MaxAccelYawoffsetAlt::Yaw(yaw),
+                                    ),
+                                    StrafeDir::LeftRight(count) | StrafeDir::RightLeft(count) => {
+                                        let adjustment_dir =
+                                            if matches!(dir, StrafeDir::RightLeft(_)) {
                                                 -adjustment_dir
                                             } else {
                                                 adjustment_dir
                                             };
 
-                                            (
-                                                MaxAccelYawOffsetMode::StartAndTarget,
-                                                adjustment_dir,
-                                                MaxAccelYawoffsetAlt::None,
-                                            )
-                                        }
-                                        StrafeDir::Yaw(yaw) | StrafeDir::Line { yaw } => (
+                                        (
                                             MaxAccelYawOffsetMode::Alt,
                                             adjustment_dir,
-                                            MaxAccelYawoffsetAlt::Yaw(yaw),
-                                        ),
-                                        StrafeDir::LeftRight(count)
-                                        | StrafeDir::RightLeft(count) => {
-                                            let adjustment_dir =
-                                                if matches!(dir, StrafeDir::RightLeft(_)) {
-                                                    -adjustment_dir
-                                                } else {
-                                                    adjustment_dir
-                                                };
-
-                                            (
-                                                MaxAccelYawOffsetMode::Alt,
-                                                adjustment_dir,
-                                                MaxAccelYawoffsetAlt::LeftRight(count),
-                                            )
-                                        }
-                                        _ => {
-                                            return Err(ManualOpError::UserError(
-                                                "Max accel yaw offset does not support current strafe dir.".to_owned(),
-                                            ))
-                                        }
+                                            MaxAccelYawoffsetAlt::LeftRight(count),
+                                        )
                                     }
+                                    _ => return Err(ManualOpError::UserError(
+                                        "Max accel yaw offset does not support current strafe dir."
+                                            .to_owned(),
+                                    )),
+                                }
                                 } else {
                                     unreachable!()
                                 };
@@ -1106,9 +1103,6 @@ impl Editor {
                                 })) => -adjustment_dir,
                                 _ => adjustment_dir,
                             };
-
-                            // TODO: do something similar to s5x
-                            // where it takes yawspeed of previous frame/bulk.
 
                             self.side_strafe_yawspeed_adjustment =
                                 Some(MouseAdjustment::new(*yawspeed, mouse_pos, dir))

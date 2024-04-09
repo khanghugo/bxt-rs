@@ -304,6 +304,8 @@ pub struct MaxAccelYawOffsetAdjustment {
     pub mode: MaxAccelYawOffsetMode,
     /// Offset the mouse delta position when mode is switched.
     mouse_offset: IVec2,
+    /// Skip Alt cycle if the mode is not available.
+    cycle_again: bool,
 }
 
 /// Modes of operation for maximum acceleration yaw offset adjustment.
@@ -1078,6 +1080,7 @@ impl Editor {
                                     ),
                                     mode,
                                     mouse_offset: IVec2::ZERO,
+                                    cycle_again: false,
                                 });
                         } else if let Some(yaw) = bulk.yaw() {
                             self.yaw_adjustment =
@@ -1828,7 +1831,7 @@ impl Editor {
                 .nth(bulk_idx)
                 .unwrap();
 
-        let (start, target, accel, yaw, count) = bulk.max_accel_yaw_offset_mut().unwrap();
+        let (start, target, accel, mut yaw, mut count) = bulk.max_accel_yaw_offset_mut().unwrap();
 
         if !mouse.buttons.is_right_down() {
             if !adjustment.mouse_adjustment.changed_once {
@@ -1861,8 +1864,12 @@ impl Editor {
                         from: adjustment.mouse_adjustment.original_value.accel,
                         to: *accel,
                     },
-                    // This shouldn't happen because the mode doesn't match
-                    MaxAccelYawOffsetMode::Alt => unreachable!(),
+                    // Should not happen because we skip Alt if Alt is not available.
+                    // It is possible for left click this frame and release right at the same time.
+                    MaxAccelYawOffsetMode::Alt => {
+                        self.max_accel_yaw_offset_adjustment = None;
+                        return Ok(());
+                    }
                 },
                 MaxAccelYawoffsetAlt::Yaw(from) => Operation::SetYaw {
                     bulk_idx,
@@ -1884,7 +1891,9 @@ impl Editor {
 
         // Mouse left click to switch mode.
         // This must happen before the delta calculation.
-        if mouse.buttons.is_left_down() && !prev_mouse.buttons.is_left_down() {
+        if (mouse.buttons.is_left_down() && !prev_mouse.buttons.is_left_down())
+            || adjustment.cycle_again
+        {
             // Cycling
             adjustment.mode = adjustment.mode.cycle();
 
@@ -1892,6 +1901,20 @@ impl Editor {
             *start = adjustment.mouse_adjustment.original_value.start;
             *target = adjustment.mouse_adjustment.original_value.target;
             *accel = adjustment.mouse_adjustment.original_value.accel;
+
+            if let MaxAccelYawoffsetAlt::Yaw(original) =
+                adjustment.mouse_adjustment.original_value.alt
+            {
+                let binding = yaw.as_deref_mut();
+                *binding.unwrap() = original;
+            }
+
+            if let MaxAccelYawoffsetAlt::LeftRight(original) =
+                adjustment.mouse_adjustment.original_value.alt
+            {
+                let binding = count.as_deref_mut();
+                *binding.unwrap() = original;
+            }
 
             adjustment.mouse_adjustment.changed_once = false;
 
@@ -1903,6 +1926,7 @@ impl Editor {
                 );
 
             should_invalidate = true;
+            adjustment.cycle_again = false;
         }
 
         let speed = keyboard.adjustment_speed();
@@ -1965,7 +1989,9 @@ impl Editor {
                 let delta = delta * 50. * 0.1;
 
                 match adjustment.mouse_adjustment.original_value.alt {
-                    MaxAccelYawoffsetAlt::None => unreachable!(),
+                    MaxAccelYawoffsetAlt::None => {
+                        adjustment.cycle_again = true;
+                    }
                     MaxAccelYawoffsetAlt::Yaw(from) => {
                         let new_yaw = from + delta;
 
@@ -2338,7 +2364,8 @@ impl Editor {
                     .nth(bulk_idx)
                     .unwrap();
 
-            let values = bulk.max_accel_yaw_offset_mut().unwrap();
+            let mut values = bulk.max_accel_yaw_offset_mut().unwrap();
+            let mut should_invalidate = false;
 
             if (*values.0, *values.1, *values.2)
                 != (
@@ -2350,6 +2377,27 @@ impl Editor {
                 *values.0 = original_value.start;
                 *values.1 = original_value.target;
                 *values.2 = original_value.accel;
+            }
+
+            if let MaxAccelYawoffsetAlt::Yaw(original) =
+                adjustment.mouse_adjustment.original_value.alt
+            {
+                let binding = values.3.as_deref_mut();
+                if *binding.as_deref().unwrap() != original {
+                    *binding.unwrap() = original;
+                }
+            }
+
+            if let MaxAccelYawoffsetAlt::LeftRight(original) =
+                adjustment.mouse_adjustment.original_value.alt
+            {
+                let binding = values.4.as_deref_mut();
+                if *binding.as_deref().unwrap() != original {
+                    *binding.unwrap() = original;
+                }
+            }
+
+            if should_invalidate {
                 self.invalidate(first_frame_idx);
             }
         }

@@ -1839,48 +1839,49 @@ impl Editor {
                 return Ok(());
             }
 
-            let op = match adjustment.mouse_adjustment.original_value.alt {
-                MaxAccelYawoffsetAlt::None => match adjustment.mode {
-                    MaxAccelYawOffsetMode::StartAndTarget => Operation::SetMaxAccelStartAndTarget {
-                        bulk_idx,
-                        from: (
-                            adjustment.mouse_adjustment.original_value.start,
-                            adjustment.mouse_adjustment.original_value.target,
-                        ),
-                        to: (*start, *target),
-                    },
-                    MaxAccelYawOffsetMode::Target => Operation::SetMaxAccelStart {
-                        bulk_idx,
-                        from: adjustment.mouse_adjustment.original_value.start,
-                        to: *start,
-                    },
-                    MaxAccelYawOffsetMode::Acceleration => Operation::SetMaxAccelTarget {
-                        bulk_idx,
-                        from: adjustment.mouse_adjustment.original_value.target,
-                        to: *target,
-                    },
-                    MaxAccelYawOffsetMode::Start => Operation::SetMaxAccelAccel {
-                        bulk_idx,
-                        from: adjustment.mouse_adjustment.original_value.accel,
-                        to: *accel,
-                    },
-                    // Should not happen because we skip Alt if Alt is not available.
-                    // It is possible for left click this frame and release right at the same time.
-                    MaxAccelYawOffsetMode::Alt => {
-                        self.max_accel_yaw_offset_adjustment = None;
-                        return Ok(());
+            let op = match adjustment.mode {
+                MaxAccelYawOffsetMode::StartAndTarget => Operation::SetMaxAccelStartAndTarget {
+                    bulk_idx,
+                    from: (
+                        adjustment.mouse_adjustment.original_value.start,
+                        adjustment.mouse_adjustment.original_value.target,
+                    ),
+                    to: (*start, *target),
+                },
+                MaxAccelYawOffsetMode::Start => Operation::SetMaxAccelStart {
+                    bulk_idx,
+                    from: adjustment.mouse_adjustment.original_value.start,
+                    to: *start,
+                },
+                MaxAccelYawOffsetMode::Target => Operation::SetMaxAccelTarget {
+                    bulk_idx,
+                    from: adjustment.mouse_adjustment.original_value.target,
+                    to: *target,
+                },
+                MaxAccelYawOffsetMode::Acceleration => Operation::SetMaxAccelAccel {
+                    bulk_idx,
+                    from: adjustment.mouse_adjustment.original_value.accel,
+                    to: *accel,
+                },
+                MaxAccelYawOffsetMode::Alt => {
+                    match adjustment.mouse_adjustment.original_value.alt {
+                        // Can't do anything.
+                        MaxAccelYawoffsetAlt::None => {
+                            self.max_accel_yaw_offset_adjustment = None;
+                            return Ok(());
+                        }
+                        MaxAccelYawoffsetAlt::Yaw(from) => Operation::SetYaw {
+                            bulk_idx,
+                            from,
+                            to: *yaw.unwrap(),
+                        },
+                        MaxAccelYawoffsetAlt::LeftRight(from) => Operation::SetLeftRightCount {
+                            bulk_idx,
+                            from: from.get(),
+                            to: count.unwrap().get(),
+                        },
                     }
-                },
-                MaxAccelYawoffsetAlt::Yaw(from) => Operation::SetYaw {
-                    bulk_idx,
-                    from,
-                    to: *yaw.unwrap(),
-                },
-                MaxAccelYawoffsetAlt::LeftRight(from) => Operation::SetLeftRightCount {
-                    bulk_idx,
-                    from: from.get(),
-                    to: count.unwrap().get(),
-                },
+                }
             };
 
             self.max_accel_yaw_offset_adjustment = None;
@@ -2377,6 +2378,8 @@ impl Editor {
                 *values.0 = original_value.start;
                 *values.1 = original_value.target;
                 *values.2 = original_value.accel;
+
+                should_invalidate = true;
             }
 
             if let MaxAccelYawoffsetAlt::Yaw(original) =
@@ -2386,6 +2389,8 @@ impl Editor {
                 if *binding.as_deref().unwrap() != original {
                     *binding.unwrap() = original;
                 }
+
+                should_invalidate = true;
             }
 
             if let MaxAccelYawoffsetAlt::LeftRight(original) =
@@ -2395,6 +2400,8 @@ impl Editor {
                 if *binding.as_deref().unwrap() != original {
                     *binding.unwrap() = original;
                 }
+
+                should_invalidate = true;
             }
 
             if should_invalidate {

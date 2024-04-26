@@ -350,7 +350,7 @@ impl<S: Step> Step for Strafe<S> {
                 frame_bulk.auto_actions.movement
             {
                 let theta = match type_ {
-                    StrafeType::MaxAccel | StrafeType::MaxAccelYawOffset(_, _, _) => match dir {
+                    StrafeType::MaxAccel | StrafeType::MaxAccelYawOffset { .. } => match dir {
                         StrafeDir::Left => max_accel_theta(parameters, &state),
                         StrafeDir::Right => -max_accel_theta(parameters, &state),
                         StrafeDir::Yaw(yaw) => {
@@ -447,7 +447,7 @@ impl<S: Step> Step for Strafe<S> {
                     (camera_yaw, entry)
                 };
 
-                let camera_yaw = if matches!(type_, StrafeType::MaxAccelYawOffset(_, _, _)) {
+                let camera_yaw = if matches!(type_, StrafeType::MaxAccelYawOffset { .. }) {
                     // theta < 0. = is right
                     // If is right then we decreases yaw by offset.
                     // Therefore, positive offset in framebulk mean going more on that side.
@@ -560,11 +560,21 @@ impl<S: Step> Step for ResetFields<S> {
         // If we have some acceleration, then this kicks in.
         // It will preserve the final value across split segments.
         if let Some(AutoMovement::Strafe(StrafeSettings {
-            type_: StrafeType::MaxAccelYawOffset(start, target, accel),
+            type_:
+                StrafeType::MaxAccelYawOffset {
+                    start,
+                    target,
+                    accel,
+                },
             dir,
         })) = frame_bulk.auto_actions.movement
         {
             let right = matches!(dir, StrafeDir::Right);
+
+            // Flip start and target when accel is negative.
+            state.max_accel_yaw_offset_value = (state.max_accel_yaw_offset_value + accel)
+                .max(start)
+                .min(target);
 
             // Reset value if we have different inputs.
             // This means that if we split a s5x bulk,
@@ -574,12 +584,10 @@ impl<S: Step> Step for ResetFields<S> {
                 || accel != state.prev_max_accel_yaw_offset_accel
                 || right != state.prev_max_accel_yaw_offset_right
             {
-                // Terrible hack to have 0 as the start and target at the end and
-                // vice versa.
                 state.max_accel_yaw_offset_value = if accel.is_sign_negative() {
-                    target - accel
+                    target
                 } else {
-                    start - accel
+                    start
                 };
 
                 // Update so next time we know what to compare against.
@@ -587,16 +595,6 @@ impl<S: Step> Step for ResetFields<S> {
                 state.prev_max_accel_yaw_offset_target = target;
                 state.prev_max_accel_yaw_offset_accel = accel;
                 state.prev_max_accel_yaw_offset_right = right;
-            };
-
-            state.max_accel_yaw_offset_value = if accel.is_sign_negative() {
-                // accel is negative so addition is subtraction.
-                (state.max_accel_yaw_offset_value + accel).max(start)
-            } else {
-                // .max(start) to avoid negative and be consistent with HLStrafe.
-                (state.max_accel_yaw_offset_value + accel)
-                    .max(start)
-                    .min(target)
             };
         }
 

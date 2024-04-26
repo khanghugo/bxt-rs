@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize};
 use super::utils::{line_first_frame_idx, line_first_frame_idx_and_frame_count};
 use crate::modules::tas_studio::editor::utils::{
     bulk_and_first_frame_idx_mut, line_idx_and_repeat_at_frame, FrameBulkExt,
+    MaxAccelOffsetValuesMut,
 };
 
 // This enum is stored in a SQLite DB as bincode bytes. All changes MUST BE BACKWARDS COMPATIBLE to
 // be able to load old projects.
-// Make sure that newer operations must be added at the end of the enum.
+// Make sure that newer operations are added at the end of the enum.
 /// A basic operation on a HLTAS.
 ///
 /// All operations can be applied and undone. They therefore store enough information to be able to
@@ -103,22 +104,22 @@ pub enum Operation {
         from: Option<String>,
         to: Option<String>,
     },
-    SetMaxAccelStart {
+    SetMaxAccelOffsetStart {
         bulk_idx: usize,
         from: f32,
         to: f32,
     },
-    SetMaxAccelTarget {
+    SetMaxAccelOffsetTarget {
         bulk_idx: usize,
         from: f32,
         to: f32,
     },
-    SetMaxAccelAccel {
+    SetMaxAccelOffsetAccel {
         bulk_idx: usize,
         from: f32,
         to: f32,
     },
-    SetMaxAccelStartAndTarget {
+    SetMaxAccelOffsetStartAndTarget {
         bulk_idx: usize,
         from: (f32, f32),
         to: (f32, f32),
@@ -392,7 +393,7 @@ impl Operation {
                 *yawspeed = to;
                 return Some(first_frame_idx);
             }
-            Operation::SetMaxAccelStart { bulk_idx, from, to } => {
+            Operation::SetMaxAccelOffsetStart { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
@@ -400,7 +401,7 @@ impl Operation {
                 let start = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have starting yaw offset")
-                    .0;
+                    .start;
                 assert_eq!(from, *start, "wrong current starting yaw offset");
 
                 if from != to {
@@ -408,7 +409,7 @@ impl Operation {
                     return Some(first_frame_idx);
                 }
             }
-            Operation::SetMaxAccelTarget { bulk_idx, from, to } => {
+            Operation::SetMaxAccelOffsetTarget { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
@@ -416,7 +417,7 @@ impl Operation {
                 let target = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have target yaw offset")
-                    .1;
+                    .target;
                 assert_eq!(from, *target, "wrong current target yaw offset");
 
                 if from != to {
@@ -424,7 +425,7 @@ impl Operation {
                     return Some(first_frame_idx);
                 }
             }
-            Operation::SetMaxAccelAccel { bulk_idx, from, to } => {
+            Operation::SetMaxAccelOffsetAccel { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
@@ -432,7 +433,7 @@ impl Operation {
                 let accel = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have yaw acceleration")
-                    .2;
+                    .accel;
                 assert_eq!(from, *accel, "wrong current yaw acceleration");
 
                 if from != to {
@@ -440,12 +441,12 @@ impl Operation {
                     return Some(first_frame_idx);
                 }
             }
-            Operation::SetMaxAccelStartAndTarget { bulk_idx, from, to } => {
+            Operation::SetMaxAccelOffsetStartAndTarget { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
 
-                let (start, target, ..) = bulk
+                let MaxAccelOffsetValuesMut { start, target, .. } = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have starting and target yaw offset");
 
@@ -748,7 +749,7 @@ impl Operation {
                 *yawspeed = from;
                 return Some(first_frame_idx);
             }
-            Operation::SetMaxAccelStart { bulk_idx, from, to } => {
+            Operation::SetMaxAccelOffsetStart { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
@@ -756,7 +757,7 @@ impl Operation {
                 let start = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have starting yaw offset")
-                    .0;
+                    .start;
                 assert_eq!(to, *start, "wrong current starting yaw offset");
 
                 if from != to {
@@ -764,7 +765,7 @@ impl Operation {
                     return Some(first_frame_idx);
                 }
             }
-            Operation::SetMaxAccelTarget { bulk_idx, from, to } => {
+            Operation::SetMaxAccelOffsetTarget { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
@@ -772,7 +773,7 @@ impl Operation {
                 let target = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have target yaw offset")
-                    .1;
+                    .target;
                 assert_eq!(to, *target, "wrong current target yaw offset");
 
                 if from != to {
@@ -780,7 +781,7 @@ impl Operation {
                     return Some(first_frame_idx);
                 }
             }
-            Operation::SetMaxAccelAccel { bulk_idx, from, to } => {
+            Operation::SetMaxAccelOffsetAccel { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
@@ -788,7 +789,7 @@ impl Operation {
                 let accel = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have yaw acceleration")
-                    .2;
+                    .accel;
                 assert_eq!(to, *accel, "wrong current yaw acceleration");
 
                 if from != to {
@@ -796,12 +797,12 @@ impl Operation {
                     return Some(first_frame_idx);
                 }
             }
-            Operation::SetMaxAccelStartAndTarget { bulk_idx, from, to } => {
+            Operation::SetMaxAccelOffsetStartAndTarget { bulk_idx, from, to } => {
                 let (bulk, first_frame_idx) = bulk_and_first_frame_idx_mut(hltas)
                     .nth(bulk_idx)
                     .expect("invalid bulk index");
 
-                let (start, target, ..) = bulk
+                let MaxAccelOffsetValuesMut { start, target, .. } = bulk
                     .max_accel_yaw_offset_mut()
                     .expect("frame bulk should have starting and target yaw offset");
 
@@ -1384,7 +1385,7 @@ s41-------|------|------|0.004|70|-|10
 ----------|------|------|0.004|10|-|6
 s50-------|------|------|0.004|- 0 0 0|-|10
 s51-------|------|------|0.004|- 0 70 10|-|10",
-            Operation::SetMaxAccelStart {
+            Operation::SetMaxAccelOffsetStart {
                 bulk_idx: 1,
                 from: 0.,
                 to: 69.,
@@ -1403,7 +1404,7 @@ s51-------|------|------|0.004|- 0 70 10|-|10",
 ----------|------|------|0.004|10|-|6
 s50-------|------|------|0.004|- 0 0 0|-|10
 s51-------|------|------|0.004|- 0 70 10|-|10",
-            Operation::SetMaxAccelStartAndTarget {
+            Operation::SetMaxAccelOffsetStartAndTarget {
                 bulk_idx: 1,
                 from: (0., 0.),
                 to: (69., -89.34),
@@ -1460,7 +1461,7 @@ s51-------|------|------|0.004|- 0 70 10|-|10",
 ----------|------|------|0.004|10|-|6
 s53-------|------|------|0.004|13 0 0 0|-|10
 s51-------|------|------|0.004|- 0 70 10|-|10",
-            Operation::SetMaxAccelAccel {
+            Operation::SetMaxAccelOffsetAccel {
                 bulk_idx: 1,
                 from: 0.,
                 to: -14.3,

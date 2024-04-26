@@ -27,19 +27,28 @@ pub trait FrameBulkExt {
 
     /// Return a reference to the starting yaw offset, target yaw offset, and acceleration stored in
     /// the framebulk, if any.
-    fn max_accel_yaw_offset(&self) -> Option<(&f32, &f32, &f32)>;
+    fn max_accel_yaw_offset(&self) -> Option<MaxAccelOffsetValues>;
 
     // Return a mutable reference to the starting yaw offset, target yaw offset, acceleration,
     // and original yaw field value stored in the framebulk, if any.
-    fn max_accel_yaw_offset_mut(
-        &mut self,
-    ) -> Option<(
-        &mut f32,
-        &mut f32,
-        &mut f32,
-        Option<&mut f32>,
-        Option<&mut NonZeroU32>,
-    )>;
+    fn max_accel_yaw_offset_mut(&mut self) -> Option<MaxAccelOffsetValuesMut>;
+}
+
+#[allow(dead_code)]
+pub struct MaxAccelOffsetValues<'a> {
+    pub start: &'a f32,
+    pub target: &'a f32,
+    pub accel: &'a f32,
+    pub yaw: Option<&'a f32>,
+    pub count: Option<&'a NonZeroU32>,
+}
+
+pub struct MaxAccelOffsetValuesMut<'a> {
+    pub start: &'a mut f32,
+    pub target: &'a mut f32,
+    pub accel: &'a mut f32,
+    pub yaw: Option<&'a mut f32>,
+    pub count: Option<&'a mut NonZeroU32>,
 }
 
 impl FrameBulkExt for FrameBulk {
@@ -105,28 +114,15 @@ impl FrameBulkExt for FrameBulk {
         }
     }
 
-    fn max_accel_yaw_offset(&self) -> Option<(&f32, &f32, &f32)> {
+    fn max_accel_yaw_offset(&self) -> Option<MaxAccelOffsetValues> {
         match &self.auto_actions.movement {
             Some(AutoMovement::Strafe(StrafeSettings {
-                type_: StrafeType::MaxAccelYawOffset(start, target, accel),
-                ..
-            })) => Some((start, target, accel)),
-            _ => None,
-        }
-    }
-
-    fn max_accel_yaw_offset_mut(
-        &mut self,
-    ) -> Option<(
-        &mut f32,
-        &mut f32,
-        &mut f32,
-        Option<&mut f32>,
-        Option<&mut NonZeroU32>,
-    )> {
-        match &mut self.auto_actions.movement {
-            Some(AutoMovement::Strafe(StrafeSettings {
-                type_: StrafeType::MaxAccelYawOffset(start, target, accel),
+                type_:
+                    StrafeType::MaxAccelYawOffset {
+                        start,
+                        target,
+                        accel,
+                    },
                 dir,
             })) => {
                 let (yaw, count) = match dir {
@@ -137,7 +133,44 @@ impl FrameBulkExt for FrameBulk {
                     _ => (None, None),
                 };
 
-                Some((start, target, accel, yaw, count))
+                Some(MaxAccelOffsetValues {
+                    start,
+                    target,
+                    accel,
+                    yaw,
+                    count,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn max_accel_yaw_offset_mut(&mut self) -> Option<MaxAccelOffsetValuesMut> {
+        match &mut self.auto_actions.movement {
+            Some(AutoMovement::Strafe(StrafeSettings {
+                type_:
+                    StrafeType::MaxAccelYawOffset {
+                        start,
+                        target,
+                        accel,
+                    },
+                dir,
+            })) => {
+                let (yaw, count) = match dir {
+                    StrafeDir::Yaw(yaw) | StrafeDir::Line { yaw } => (Some(yaw), None),
+                    StrafeDir::LeftRight(count) | StrafeDir::RightLeft(count) => {
+                        (None, Some(count))
+                    }
+                    _ => (None, None),
+                };
+
+                Some(MaxAccelOffsetValuesMut {
+                    start,
+                    target,
+                    accel,
+                    yaw,
+                    count,
+                })
             }
             _ => None,
         }

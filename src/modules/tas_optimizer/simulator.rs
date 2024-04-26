@@ -125,6 +125,8 @@ impl<'a, T: Trace> Iterator for Simulator<'a, T> {
                 Line::Change(_) => (),
                 Line::TargetYawOverride(_) => (),
                 Line::RenderYawOverride(_) => (),
+                Line::PitchOverride(_) => (),
+                Line::RenderPitchOverride(_) => (),
             }
 
             // Advance to the next line for non-frame-bulks.
@@ -294,7 +296,11 @@ mod tests {
         let lines = [Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::MaxAccelYawOffset(0., 210., 10.),
+                    type_: StrafeType::MaxAccelYawOffset {
+                        start: 0.,
+                        target: 210.,
+                        accel: 10.,
+                    },
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -319,7 +325,11 @@ mod tests {
             Line::FrameBulk(FrameBulk {
                 auto_actions: AutoActions {
                     movement: Some(AutoMovement::Strafe(StrafeSettings {
-                        type_: StrafeType::MaxAccelYawOffset(0., 210., 10.),
+                        type_: StrafeType::MaxAccelYawOffset {
+                            start: 0.,
+                            target: 210.,
+                            accel: 10.,
+                        },
                         dir: StrafeDir::Left,
                     })),
                     leave_ground_action: None,
@@ -338,7 +348,11 @@ mod tests {
             Line::FrameBulk(FrameBulk {
                 auto_actions: AutoActions {
                     movement: Some(AutoMovement::Strafe(StrafeSettings {
-                        type_: StrafeType::MaxAccelYawOffset(0., 210., 10.),
+                        type_: StrafeType::MaxAccelYawOffset {
+                            start: 0.,
+                            target: 210.,
+                            accel: 10.,
+                        },
                         dir: StrafeDir::Left,
                     })),
                     leave_ground_action: None,
@@ -369,7 +383,11 @@ mod tests {
         let mut lines = vec![Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::MaxAccelYawOffset(0., 200., 10.),
+                    type_: StrafeType::MaxAccelYawOffset {
+                        start: 0.,
+                        target: 200.,
+                        accel: 10.,
+                    },
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -393,7 +411,11 @@ mod tests {
         lines.push(Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::MaxAccelYawOffset(0., 210., 10.),
+                    type_: StrafeType::MaxAccelYawOffset {
+                        start: 0.,
+                        target: 210.,
+                        accel: 10.,
+                    },
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -418,7 +440,11 @@ mod tests {
         lines.push(Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::MaxAccelYawOffset(0., 210., 9.),
+                    type_: StrafeType::MaxAccelYawOffset {
+                        start: 0.,
+                        target: 210.,
+                        accel: 9.,
+                    },
                     dir: StrafeDir::Left,
                 })),
                 leave_ground_action: None,
@@ -443,7 +469,11 @@ mod tests {
         lines.push(Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::MaxAccelYawOffset(0., 210., 9.),
+                    type_: StrafeType::MaxAccelYawOffset {
+                        start: 0.,
+                        target: 210.,
+                        accel: 9.,
+                    },
                     dir: StrafeDir::Right,
                 })),
                 leave_ground_action: None,
@@ -468,7 +498,11 @@ mod tests {
         lines.push(Line::FrameBulk(FrameBulk {
             auto_actions: AutoActions {
                 movement: Some(AutoMovement::Strafe(StrafeSettings {
-                    type_: StrafeType::MaxAccelYawOffset(10., 210., 9.),
+                    type_: StrafeType::MaxAccelYawOffset {
+                        start: 10.,
+                        target: 210.,
+                        accel: 9.,
+                    },
                     dir: StrafeDir::Right,
                 })),
                 leave_ground_action: None,

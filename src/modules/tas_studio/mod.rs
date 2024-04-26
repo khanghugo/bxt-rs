@@ -1050,8 +1050,8 @@ Values that you can toggle:
 - s07: right-left strafing
 - s40: constant turn rate to the left
 - s41: constant turn rate to the right
-- s50: accelerated turn rate to the left
-- s51: accelerated turn rate to the right
+- s50: accelerated turn to the left
+- s51: accelerated turn to the right
 - lgagst: makes autojump and ducktap trigger at optimal speed
 - autojump
 - ducktap
@@ -1131,11 +1131,19 @@ fn toggle(marker: MainThreadMarker, what: String) {
         },
         "s50" => ToggleAutoActionTarget::Strafe {
             dir: StrafeDir::Left,
-            type_: StrafeType::MaxAccelYawOffset(0., 0., 0.),
+            type_: StrafeType::MaxAccelYawOffset {
+                start: 0.,
+                target: 0.,
+                accel: 0.,
+            },
         },
         "s51" => ToggleAutoActionTarget::Strafe {
             dir: StrafeDir::Right,
-            type_: StrafeType::MaxAccelYawOffset(0., 0., 0.),
+            type_: StrafeType::MaxAccelYawOffset {
+                start: 0.,
+                target: 0.,
+                accel: 0.,
+            },
         },
         "lgagst" => ToggleAutoActionTarget::LeaveGroundAtOptimalSpeed,
         "autojump" => ToggleAutoActionTarget::AutoJump,
@@ -1604,12 +1612,12 @@ pub unsafe fn on_tas_playback_frame(
         // TODO: prev_frame_input, which is not set here, is important.
         let mut strafe_state = bxt_strafe::State::new(&tracer, params, player);
         strafe_state.strafe_cycle_frame_count = data.strafe_cycle_frame_count;
-        strafe_state.max_accel_yaw_offset_value = data.accel_yawspeed[0];
-        strafe_state.prev_max_accel_yaw_offset_start = data.accel_yawspeed[1];
-        strafe_state.prev_max_accel_yaw_offset_target = data.accel_yawspeed[2];
-        strafe_state.prev_max_accel_yaw_offset_accel = data.accel_yawspeed[3];
-        // LEFT = 0, RIGHT = 1. Very nice. But it is float though.
-        strafe_state.prev_max_accel_yaw_offset_right = data.accel_yawspeed[4] == 1.;
+        strafe_state.max_accel_yaw_offset_value = data.max_accel_yaw_offset.value;
+        strafe_state.prev_max_accel_yaw_offset_start = data.max_accel_yaw_offset.start;
+        strafe_state.prev_max_accel_yaw_offset_target = data.max_accel_yaw_offset.target;
+        strafe_state.prev_max_accel_yaw_offset_accel = data.max_accel_yaw_offset.accel;
+        // LEFT = 0, RIGHT = 1. Very nice.
+        strafe_state.prev_max_accel_yaw_offset_right = data.max_accel_yaw_offset.dir == 1;
 
         // Get view angles for this frame.
         unsafe {
@@ -1887,7 +1895,11 @@ fn add_frame_bulk_hud_lines(text: &mut Vec<u8>, bulk: &FrameBulk) {
                 StrafeType::ConstYawspeed(yawspeed) => {
                     write!(text, "turn rate: {yawspeed:.0}").unwrap();
                 }
-                StrafeType::MaxAccelYawOffset(start, target, accel) => {
+                StrafeType::MaxAccelYawOffset {
+                    start,
+                    target,
+                    accel,
+                } => {
                     // The values are so tiny that only this would make it sensible.
                     let start = start * 100.;
                     let target = target * 100.;

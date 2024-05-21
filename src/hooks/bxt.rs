@@ -152,6 +152,7 @@ pub struct OnTasPlaybackFrameMaxAccelYawOffset {
     pub target: f32,
     pub accel: f32,
     pub dir: u8,
+    pub rendered_viewangles: [f32; 3],
 }
 
 unsafe extern "C" fn on_tas_playback_frame(data: OnTasPlaybackFrameData) -> c_int {

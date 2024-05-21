@@ -140,6 +140,8 @@ pub struct State {
     pub prev_max_accel_yaw_offset_target: f32,
     pub prev_max_accel_yaw_offset_accel: f32,
     pub prev_max_accel_yaw_offset_right: bool,
+    // In case of yaw and pitch override, this might be useful.
+    pub rendered_viewangles: Vec3,
 }
 
 impl State {
@@ -157,6 +159,7 @@ impl State {
             prev_max_accel_yaw_offset_target: 0.,
             prev_max_accel_yaw_offset_accel: 0.,
             prev_max_accel_yaw_offset_right: false,
+            rendered_viewangles: Vec3::ZERO,
         };
 
         rv.update_place(tracer);

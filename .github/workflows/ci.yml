@@ -9,7 +9,10 @@ on:
 
 env:
   RUN_SLOW_TESTS: 1
-
+  
+permissions:
+  contents: write
+  
 jobs:
   build:
     strategy:

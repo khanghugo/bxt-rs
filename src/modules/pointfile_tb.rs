@@ -318,9 +318,9 @@ fn file_writer_thread(
                     frequency,
                     max_size,
                 } => {
-                    entries.process_new_point(point);
                     entries.frequency = frequency;
                     entries.max_size = max_size;
+                    entries.process_new_point(point);
                     should_write = true;
                 }
                 PointFileWriteThreadMessage::Clear => {

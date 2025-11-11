@@ -261,6 +261,10 @@ fn go_checkpoint(marker: MainThreadMarker) {
     // player.v.v_angle = *viewangles;
     unsafe { engine::hudSetViewAngles.get(marker)(viewangles) };
 
+    // not moving after go check
+    // if not set to 0, player velocity will accumulate if BXT_CHECKPOINT_WITH_VEL = 0
+    player.v.velocity = [0f32; 3];
+
     if BXT_CHECKPOINT_WITH_VEL.as_bool(marker) {
         player.v.velocity = *velocity;
     }

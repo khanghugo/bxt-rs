@@ -170,7 +170,7 @@ pub fn draw_custom_menu(marker: MainThreadMarker, draw: &hud::Draw) {
     draw_white_ln(
         &mut multi_line,
         format!(
-            "{} (Page {}/{})\0",
+            "{} ({}/{})\0",
             curr_menu_display.custom_menu.label,
             curr_menu_display.page + 1,
             (curr_menu_display.custom_menu.items.len() + PAGE_SIZE - 1) / PAGE_SIZE

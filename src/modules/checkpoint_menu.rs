@@ -22,7 +22,7 @@ impl Module for CheckpointMenu {
     }
 
     fn description(&self) -> &'static str {
-        "Checkpoint system with menu support."
+        "Checkpoint system with HUD menu."
     }
 
     fn commands(&self) -> &'static [&'static Command] {
@@ -48,7 +48,8 @@ static BXT_CHECKPOINT_MENU: Command = Command::new(
     handler!(
         "bxt_checkpoint_menu
 
-Toggles checkpoint menu.",
+Toggles checkpoint menu.
+Needs `sv_cheats` enabled.",
         toggle_menu as fn(_)
     ),
 );

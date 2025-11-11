@@ -15,7 +15,7 @@ impl Module for Menu {
     }
 
     fn description(&self) -> &'static str {
-        "Drawing custom menu elements."
+        "Drawing custom HUD menu."
     }
 
     fn cvars(&self) -> &'static [&'static CVar] {

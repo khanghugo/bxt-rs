@@ -20,7 +20,7 @@ impl Module for UserDefinedMenu {
     }
 
     fn description(&self) -> &'static str {
-        "Loads and display custom menu from a JSON file."
+        "Loads and displays custom menu from a JSON file."
     }
 
     fn commands(&self) -> &'static [&'static Command] {

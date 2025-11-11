@@ -516,6 +516,7 @@ pub static hudSetViewAngles: Pointer<unsafe extern "C" fn(*const [c_float; 3])> 
         // yet does the exact opposite thing!
         Patterns(&[
             // 8684
+            pattern!(55 8B EC 8D 45 ?? 50 FF 15 ?? ?? ?? ?? 8B 45 ?? 83 C4 04 8B 08),
         ]),
         null_mut(),
     );
@@ -979,7 +980,10 @@ pub static VGUI2_DrawStringClient: Pointer<
 > = Pointer::empty_patterns(
     b"VGUI2_DrawStringClient\0",
     // 114th pointer in cl_enginefuncs.
-    Patterns(&[]),
+    Patterns(&[
+        // 8684
+        pattern!(55 8B EC 8B 0D ?? ?? ?? ?? 53 56 57 8B 01 FF 50 ?? 8B 4D),
+    ]),
     null_mut(),
 );
 pub static VideoMode_IsWindowed: Pointer<unsafe extern "C" fn() -> c_int> = Pointer::empty_patterns(

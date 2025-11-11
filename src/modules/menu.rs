@@ -388,7 +388,13 @@ pub fn handle_interact_custom_menu(marker: MainThreadMarker, text: *const i8) ->
                             CustomMenuItem::Action { callback, .. }
                             | CustomMenuItem::Toggle { callback, .. }
                             | CustomMenuItem::Cycle { callback, .. } => {
-                                callback(marker);
+                                // WTF??? Windows???
+                                // Windows will crash if I don't do this.
+                                let cloned_cb = callback.clone();
+
+                                drop(binding);
+
+                                cloned_cb(marker);
                             }
                             CustomMenuItem::CycleCommand {
                                 options,
@@ -408,6 +414,9 @@ pub fn handle_interact_custom_menu(marker: MainThreadMarker, text: *const i8) ->
                                         options[*selected_index].as_str()
                                     }
                                 );
+
+                                // Windows will crash if I don't do this
+                                drop(binding);
 
                                 prepend_command(marker, formatted_command.as_str());
                             }

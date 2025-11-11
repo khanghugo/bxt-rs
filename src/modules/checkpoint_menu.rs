@@ -26,12 +26,23 @@ impl Module for CheckpointMenu {
     }
 
     fn commands(&self) -> &'static [&'static Command] {
-        static COMMANDS: &[&Command] = &[&BXT_CHECKPOINT_MENU];
+        static COMMANDS: &[&Command] = &[
+            &BXT_CHECKPOINT_MENU,
+            &BXT_CHECKPOINT_CREATE,
+            &BXT_CHECKPOINT_GOTO,
+            &BXT_CHECKPOINT_GOTO_START,
+            &BXT_CHECKPOINT_GOTO_LAST,
+            &BXT_CHECKPOINT_SET_START,
+        ];
         COMMANDS
     }
 
     fn cvars(&self) -> &'static [&'static CVar] {
-        static CVARS: &[&CVar] = &[&BXT_CHECKPOINT_WITH_VEL, &BXT_CHECKPOINT_CONDITION];
+        static CVARS: &[&CVar] = &[
+            &BXT_CHECKPOINT_WITH_VEL,
+            &BXT_CHECKPOINT_CONDITION,
+            &BXT_CHECKPOINT_RESET_ON_DISCONNECT,
+        ];
         CVARS
     }
 
@@ -54,6 +65,56 @@ Needs `sv_cheats` enabled.",
     ),
 );
 
+static BXT_CHECKPOINT_CREATE: Command = Command::new(
+    b"bxt_checkpoint_create\0",
+    handler!(
+        "bxt_checkpoint_create
+
+Creates a checkpoint",
+        create_checkpoint as fn(_)
+    ),
+);
+
+static BXT_CHECKPOINT_GOTO: Command = Command::new(
+    b"bxt_checkpoint_goto\0",
+    handler!(
+        "bxt_checkpoint_goto
+
+Gotos current checkpoint",
+        go_checkpoint as fn(_)
+    ),
+);
+
+static BXT_CHECKPOINT_GOTO_LAST: Command = Command::new(
+    b"bxt_checkpoint_goto_last\0",
+    handler!(
+        "bxt_checkpoint_goto_last
+
+Gotos last checkpoint and removes current checkpoint",
+        go_last_checkpoint as fn(_)
+    ),
+);
+
+static BXT_CHECKPOINT_GOTO_START: Command = Command::new(
+    b"bxt_checkpoint_goto_start\0",
+    handler!(
+        "bxt_checkpoint_goto_start
+
+Gotos start checkpoint and resets the run",
+        go_start as fn(_)
+    ),
+);
+
+static BXT_CHECKPOINT_SET_START: Command = Command::new(
+    b"bxt_checkpoint_set_start\0",
+    handler!(
+        "bxt_checkpoint_set_start
+
+Sets start checkpoint",
+        set_start as fn(_)
+    ),
+);
+
 static BXT_CHECKPOINT_WITH_VEL: CVar = CVar::new(
     b"bxt_checkpoint_with_vel\0",
     b"1\0",
@@ -73,22 +134,39 @@ Condition to register a checkpoint.
 3: Any condition",
 );
 
-fn toggle_menu(marker: MainThreadMarker) {
+static BXT_CHECKPOINT_RESET_ON_DISCONNECT: CVar = CVar::new(
+    b"bxt_checkpoint_reset_on_disconnect\0",
+    b"1\0",
+    "\
+Whether checkpoints and related data reset upon disconnect",
+);
+
+fn is_enabled(marker: MainThreadMarker) -> bool {
     if !CheckpointMenu.is_enabled(marker) {
-        return;
+        return false;
     }
 
-    let custom_menu = get_checkpoint_menu();
-
     let sv_cheats = unsafe { find_cvar(marker, "sv_cheats") };
-    let Some(sv_cheats) = sv_cheats else { return };
+    let Some(sv_cheats) = sv_cheats else {
+        return false;
+    };
     let sv_cheats_value = (unsafe { *sv_cheats }).value;
 
     // sv_cheats is not enabled
     if sv_cheats_value == 0. {
         con_print(marker, "sv_cheats is not enabled\n");
+        return false;
+    }
+
+    true
+}
+
+fn toggle_menu(marker: MainThreadMarker) {
+    if !is_enabled(marker) {
         return;
     }
+
+    let custom_menu = get_checkpoint_menu();
 
     menu::toggle_menu_display(marker, custom_menu);
 }
@@ -106,8 +184,13 @@ struct CheckPointEntry {
 
 static CHECKPOINT_DATA: MainThreadRefCell<Vec<CheckPointEntry>> = MainThreadRefCell::new(vec![]);
 static START_POINT: MainThreadCell<Option<CheckPointEntry>> = MainThreadCell::new(None);
+static GO_CHECKPOINT_COUNT: MainThreadCell<usize> = MainThreadCell::new(0);
 
 fn create_checkpoint(marker: MainThreadMarker) {
+    if !is_enabled(marker) {
+        return;
+    }
+
     let Some(new_entry) = get_player_entry(marker) else {
         return;
     };
@@ -151,9 +234,11 @@ fn create_checkpoint(marker: MainThreadMarker) {
     }
 }
 
-static GO_CHECKPOINT_COUNT: MainThreadCell<usize> = MainThreadCell::new(0);
-
 fn go_checkpoint(marker: MainThreadMarker) {
+    if !is_enabled(marker) {
+        return;
+    }
+
     let player = unsafe { player_edict(marker) };
     let Some(mut player) = player else { return };
     let player = unsafe { player.as_mut() };
@@ -202,12 +287,20 @@ fn go_checkpoint(marker: MainThreadMarker) {
 }
 
 fn go_last_checkpoint(marker: MainThreadMarker) {
+    if !is_enabled(marker) {
+        return;
+    }
+
     (*CHECKPOINT_DATA.borrow_mut(marker)).pop();
 
     go_checkpoint(marker);
 }
 
 fn go_start(marker: MainThreadMarker) {
+    if !is_enabled(marker) {
+        return;
+    }
+
     // this is convoluted, isn't it
     let Some(start_point) = START_POINT.get(marker) else {
         return;
@@ -322,6 +415,24 @@ fn get_checkpoint_menu() -> menu::CustomMenu {
                     }),
                 }
             },
+            // 3
+            CustomMenuItem::Toggle {
+                label: "Reset on Disconnect".into(),
+                value: Arc::new(move |marker| BXT_CHECKPOINT_RESET_ON_DISCONNECT.as_bool(marker)),
+                callback: Arc::new(move |marker| {
+                    let value = !BXT_CHECKPOINT_RESET_ON_DISCONNECT.as_bool(marker);
+
+                    prepend_command(
+                        marker,
+                        format!(
+                            "{} {}\n",
+                            BXT_CHECKPOINT_RESET_ON_DISCONNECT.name_str(),
+                            if value { "1" } else { "0" }
+                        )
+                        .as_str(),
+                    );
+                }),
+            },
         ],
     }
 }
@@ -368,4 +479,19 @@ fn is_game_dir(marker: MainThreadMarker, what: &str) -> bool {
     *GAME_DIR.borrow_mut(marker) = Some(game_dir.to_string());
 
     rv
+}
+
+fn reset_checkpoints(marker: MainThreadMarker) {
+    CHECKPOINT_DATA.borrow_mut(marker).clear();
+    START_POINT.set(marker, None);
+    GO_CHECKPOINT_COUNT.set(marker, 0);
+}
+
+pub fn on_cl_disconnnect(marker: MainThreadMarker) {
+    // resets on disconnect... unless 😳
+    if !BXT_CHECKPOINT_RESET_ON_DISCONNECT.as_bool(marker) {
+        return;
+    }
+
+    reset_checkpoints(marker);
 }

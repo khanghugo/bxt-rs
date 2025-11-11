@@ -2521,6 +2521,7 @@ pub mod exported {
 
             campath::on_cl_disconnect(marker);
             viewmodel_sway::on_cl_disconnnect(marker);
+            checkpoint_menu::on_cl_disconnnect(marker);
 
             CL_Disconnect.get(marker)();
         })

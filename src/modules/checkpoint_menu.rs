@@ -151,7 +151,7 @@ fn create_checkpoint(marker: MainThreadMarker) {
     }
 }
 
-static GO_CHECKPOINT_COUNT: MainThreadRefCell<usize> = MainThreadRefCell::new(0);
+static GO_CHECKPOINT_COUNT: MainThreadCell<usize> = MainThreadCell::new(0);
 
 fn go_checkpoint(marker: MainThreadMarker) {
     let player = unsafe { player_edict(marker) };
@@ -197,7 +197,8 @@ fn go_checkpoint(marker: MainThreadMarker) {
     player.v.punchangle = [0f32; 3];
 
     // increment go checkpoint count
-    *GO_CHECKPOINT_COUNT.borrow_mut(marker) += 1;
+    let go_check_count = GO_CHECKPOINT_COUNT.get(marker);
+    GO_CHECKPOINT_COUNT.set(marker, go_check_count + 1);
 }
 
 fn go_last_checkpoint(marker: MainThreadMarker) {
@@ -219,8 +220,11 @@ fn go_start(marker: MainThreadMarker) {
     go_checkpoint(marker);
     (*CHECKPOINT_DATA.borrow_mut(marker)).clear();
 
+    // also reset timer and start timer again
+    prepend_command(marker, "bxt_timer_reset; bxt_timer_start\n");
+
     // reset go check count when go to start
-    *GO_CHECKPOINT_COUNT.borrow_mut(marker) = 0;
+    GO_CHECKPOINT_COUNT.set(marker, 0);
 }
 
 fn set_start(marker: MainThreadMarker) {
@@ -244,7 +248,7 @@ fn get_checkpoint_menu() -> menu::CustomMenu {
                 label: "GoCheck".into(),
                 callback: Arc::new(go_checkpoint),
                 extra_text: Some(Arc::new(move |marker| {
-                    format!("#{}", *GO_CHECKPOINT_COUNT.borrow(marker))
+                    format!("#{}", GO_CHECKPOINT_COUNT.get(marker))
                 })),
             },
             // 3

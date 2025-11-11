@@ -36,7 +36,7 @@ impl Module for CheckpointMenu {
     }
 
     fn is_enabled(&self, marker: MainThreadMarker) -> bool {
-        Commands.is_enabled(marker) && CVars.is_enabled(marker) 
+        Commands.is_enabled(marker) && CVars.is_enabled(marker)
         && menu::Menu.is_enabled(marker) && engine::svs.is_set(marker) // player_edict
         && player_movement_tracing::PlayerMovementTracing.is_enabled(marker)
         && engine::hudSetViewAngles.is_set(marker)

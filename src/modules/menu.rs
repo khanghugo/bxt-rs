@@ -48,7 +48,7 @@ fn get_anchor_location(marker: MainThreadMarker) -> (i32, i32) {
 
     const DEFAULT_X: i32 = 20;
     let get_default_y = || calculate_menu_y_pos(marker, LINE_COUNT);
-    
+
     if values.len() != 2 {
         return (DEFAULT_X, get_default_y());
     } else {
@@ -137,7 +137,7 @@ static CUSTOM_MENU_DISPLAY_STATE: MainThreadRefCell<Vec<CustomMenuDisplay>> =
 // "slot9" = next page
 // "slot10" = back to previous menu or close menu
 const PAGE_SIZE: usize = 7;
-const LINE_COUNT: usize = PAGE_SIZE 
+const LINE_COUNT: usize = PAGE_SIZE
 + 3 // slot8 slot9 slot10
 + 2 // title and title padding
 ;

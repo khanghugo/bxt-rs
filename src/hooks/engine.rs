@@ -507,6 +507,18 @@ pub static hudGetViewAngles: Pointer<unsafe extern "C" fn(*mut [c_float; 3])> =
         ]),
         null_mut(),
     );
+pub static hudSetViewAngles: Pointer<unsafe extern "C" fn(*const [c_float; 3])> =
+    Pointer::empty_patterns(
+        b"hudSetViewAngles\0",
+        // 36th pointer in cl_enginefuncs.
+        //
+        // Be careful! The very previous function is hudGetViewAngles() which looks VERY similar,
+        // yet does the exact opposite thing!
+        Patterns(&[
+            // 8684
+        ]),
+        null_mut(),
+    );
 pub static idum: Pointer<*mut c_int> = Pointer::empty(
     // Not a real symbol name.
     b"idum\0",
@@ -962,6 +974,14 @@ pub static V_RenderView: Pointer<unsafe extern "C" fn()> = Pointer::empty_patter
     ]),
     my_V_RenderView as _,
 );
+pub static VGUI2_DrawStringClient: Pointer<
+    unsafe extern "C" fn(c_int, c_int, *const c_char, c_int, c_int, c_int) -> c_int,
+> = Pointer::empty_patterns(
+    b"VGUI2_DrawStringClient\0",
+    // 114th pointer in cl_enginefuncs.
+    Patterns(&[]),
+    null_mut(),
+);
 pub static VideoMode_IsWindowed: Pointer<unsafe extern "C" fn() -> c_int> = Pointer::empty_patterns(
     b"VideoMode_IsWindowed\0",
     // To find, first find GL_BeginRendering(). The first check is for the
@@ -1064,6 +1084,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &Host_ValidSave,
     &hudGetScreenInfo,
     &hudGetViewAngles,
+    &hudSetViewAngles,
     &idum,
     &movevars,
     &listener_origin,
@@ -1115,6 +1136,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &V_ApplyShake,
     &V_FadeAlpha,
     &V_RenderView,
+    &VGUI2_DrawStringClient,
     &VideoMode_IsWindowed,
     &VideoMode_GetCurrentVideoMode,
     &window_rect,
@@ -2661,6 +2683,7 @@ pub mod exported {
 
             let text = comment_overflow_fix::strip_prefix_comments(text);
             let text = scoreboard_remove::strip_showscores(marker, text);
+            let text = menu::handle_interact_custom_menu(marker, text);
 
             if tas_studio::should_skip_command(marker, text) {
                 return;
@@ -2679,6 +2702,7 @@ pub mod exported {
 
             let text = comment_overflow_fix::strip_prefix_comments(text);
             let text = scoreboard_remove::strip_showscores(marker, text);
+            let text = menu::handle_interact_custom_menu(marker, text);
 
             Cbuf_AddFilteredText.get(marker)(text);
         })
@@ -2691,6 +2715,7 @@ pub mod exported {
 
             let text = comment_overflow_fix::strip_prefix_comments(text);
             let text = scoreboard_remove::strip_showscores(marker, text);
+            let text = menu::handle_interact_custom_menu(marker, text);
 
             Cbuf_AddTextToBuffer.get(marker)(text, buffer);
         })

@@ -96,6 +96,18 @@ Example BXT checkpoint and timer commands.
                     \"command\": \"map c1a0\"
                 }
             ]
+        },
+        {
+            \"label\": \"Echo Test 2\",
+            \"options\": [
+                \"And\",
+                \"potentially\",
+                \"the\",
+                \"most\",
+                \"unstable!\"
+            ],
+            \"command\": \"echo hi\",
+            \"exclude_option\": true
         }
     ]
 }

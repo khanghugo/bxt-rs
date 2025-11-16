@@ -16,8 +16,6 @@ pub static CmdStart: Pointer<unsafe extern "C" fn(*const edict_s, *const usercmd
     Pointer::empty(b"CmdStart\0");
 pub static PM_Move: Pointer<unsafe extern "C" fn(*mut playermove_s, c_int)> =
     Pointer::empty(b"PM_Move\0");
-pub static DispatchUse: Pointer<unsafe extern "C" fn(*mut edict_s, *mut edict_s)> =
-    Pointer::empty(b"DispatchUse\0");
 pub static DispatchTouch: Pointer<unsafe extern "C" fn(*mut edict_s, *mut edict_s)> =
     Pointer::empty(b"DispatchTouch\0");
 
@@ -39,11 +37,6 @@ pub unsafe fn hook_entity_interface(marker: MainThreadMarker) {
     if let Some(cmd_start) = &mut functions.cmd_start {
         CmdStart.set(marker, Some(NonNull::new_unchecked(*cmd_start as _)));
         *cmd_start = my_CmdStart;
-    }
-
-    if let Some(pfnUse) = &mut functions.pfnUse {
-        DispatchUse.set(marker, Some(NonNull::new_unchecked(*pfnUse as _)));
-        *pfnUse = my_DispatchUse;
     }
 
     if let Some(pfnTouch) = &mut functions.pfnTouch {
@@ -72,9 +65,9 @@ pub unsafe fn reset_entity_interface(marker: MainThreadMarker) {
         CmdStart.reset(marker);
     }
 
-    if let Some(pfnUse) = &mut functions.pfnUse {
-        *pfnUse = DispatchUse.get(marker);
-        DispatchUse.reset(marker);
+    if let Some(pfnTouch) = &mut functions.pfnTouch {
+        *pfnTouch = DispatchTouch.get(marker);
+        DispatchTouch.reset(marker);
     }
 }
 
@@ -106,14 +99,6 @@ pub unsafe extern "C" fn my_PM_Move(ppmove: *mut playermove_s, server: c_int) {
         tas_server_time_fix::on_pm_move_end(marker, ppmove);
         tas_logging::write_post_pm_state(marker, ppmove);
         tas_logging::end_cmd_frame(marker);
-    })
-}
-
-pub unsafe extern "C" fn my_DispatchUse(used: *mut edict_s, other: *mut edict_s) {
-    abort_on_panic(move || {
-        let marker = MainThreadMarker::new();
-
-        DispatchUse.get(marker)(used, other);
     })
 }
 

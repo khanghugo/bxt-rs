@@ -29,12 +29,7 @@ impl Module for Timer {
     }
 
     fn commands(&self) -> &'static [&'static Command] {
-        static COMMANDS: &[&Command] = &[
-            &BXT_TIMER_START,
-            &BXT_TIMER_STOP,
-            &BXT_TIMER_RESET,
-            &BXT_TIMER_SET,
-        ];
+        static COMMANDS: &[&Command] = &[&BXT_TIMER_START, &BXT_TIMER_STOP, &BXT_TIMER_RESET];
         COMMANDS
     }
 
@@ -84,26 +79,6 @@ Resets the timer.",
         timer_reset as fn(_)
     ),
 );
-
-static BXT_TIMER_SET: Command = Command::new(
-    b"bxt_timer_set\0",
-    handler!(
-        "bxt_timer_set
-
-Resets the timer.",
-        timer_set as fn(_, _)
-    ),
-);
-
-fn timer_set(marker: MainThreadMarker, time: f32) {
-    let mut state = TIME.borrow_mut(marker);
-
-    *state = match std::mem::take(&mut *state) {
-        State::Idle => State::Running(0.),
-        State::Running(_) => State::Running(time),
-        State::Stopped(_) => State::Running(time),
-    };
-}
 
 static BXT_HUD_TIMER: CVar = CVar::new(
     b"bxt_hud_timer\0",

@@ -25,6 +25,7 @@ pub mod campath;
 pub mod capture;
 pub mod capture_skip_non_gameplay;
 pub mod capture_video_per_demo;
+pub mod cheats;
 pub mod checkpoint_menu;
 pub mod comment_overflow_fix;
 pub mod demo_playback;
@@ -97,6 +98,11 @@ pub static MODULES: &[&dyn Module] = &[
     &capture::Capture,
     &capture_skip_non_gameplay::CaptureSkipNonGameplay,
     &capture_video_per_demo::CaptureVideoPerDemo,
+    &cheats::give::CheatGive,
+    &cheats::health::CheatHealth,
+    &cheats::hook::CheatHook,
+    &cheats::noclip::CheatNoclip,
+    &cheats::position::CheatPos,
     &checkpoint_menu::CheckpointMenu,
     &commands::Commands,
     &comment_overflow_fix::CommentOverflowFix,

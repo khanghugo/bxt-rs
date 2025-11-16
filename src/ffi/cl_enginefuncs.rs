@@ -5,6 +5,8 @@
 use std::os::raw::*;
 use std::ptr::NonNull;
 
+use crate::ffi::event_api::event_api_s;
+use crate::ffi::r_efx::efx_api_s;
 use crate::hooks::engine::{client_sprite_s, rect_s, SCREENINFO};
 
 #[repr(C)]
@@ -33,7 +35,8 @@ pub struct cl_enginefuncs_s {
     pub pfnGetPlayerInfo: NonNull<c_void>,
     pub pfnPlaySoundByName: NonNull<c_void>,
     pub pfnPlaySoundByIndex: NonNull<c_void>,
-    pub pfnAngleVectors: NonNull<c_void>,
+    pub pfnAngleVectors:
+        unsafe extern "C" fn(*const [f32; 3], *mut [f32; 3], *mut [f32; 3], *mut [f32; 3]) -> c_int,
     pub pfnTextMessageGet: NonNull<c_void>,
     pub pfnDrawCharacter: NonNull<c_void>,
     pub pfnDrawConsoleString: NonNull<c_void>,
@@ -92,8 +95,8 @@ pub struct cl_enginefuncs_s {
     pub COM_ParseFile: NonNull<c_void>,
     pub COM_FreeFile: NonNull<c_void>,
     pub pTriAPI: NonNull<c_void>,
-    pub pEfxAPI: NonNull<c_void>,
-    pub pEventAPI: NonNull<c_void>,
+    pub pEfxAPI: *mut efx_api_s,
+    pub pEventAPI: *mut event_api_s,
     pub pDemoAPI: NonNull<c_void>,
     pub pNetAPI: NonNull<c_void>,
     pub pVoiceTweak: NonNull<c_void>,

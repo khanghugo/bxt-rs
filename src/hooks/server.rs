@@ -9,7 +9,9 @@ use crate::ffi::edict::edict_s;
 use crate::ffi::playermove::playermove_s;
 use crate::ffi::usercmd::usercmd_s;
 use crate::hooks::engine;
-use crate::modules::{tas_logging, tas_optimizer, tas_recording, tas_server_time_fix, timer};
+use crate::modules::{
+    cheats, tas_logging, tas_optimizer, tas_recording, tas_server_time_fix, timer,
+};
 use crate::utils::*;
 
 pub static CmdStart: Pointer<unsafe extern "C" fn(*const edict_s, *const usercmd_s, c_uint)> =
@@ -93,12 +95,14 @@ pub unsafe extern "C" fn my_PM_Move(ppmove: *mut playermove_s, server: c_int) {
 
         tas_logging::write_pre_pm_state(marker, ppmove);
         tas_server_time_fix::on_pm_move_start(marker, ppmove);
+        cheats::noclip::pre_pm_move(marker, ppmove);
 
         PM_Move.get(marker)(ppmove, server);
 
         tas_server_time_fix::on_pm_move_end(marker, ppmove);
         tas_logging::write_post_pm_state(marker, ppmove);
         tas_logging::end_cmd_frame(marker);
+        cheats::noclip::post_pm_move(marker, ppmove);
     })
 }
 

@@ -28,6 +28,23 @@ use crate::hooks::{bxt, sdl, server};
 use crate::modules::*;
 use crate::utils::*;
 
+pub static AllocEngineString: Pointer<unsafe extern "C" fn(*const c_char) -> c_int> =
+    Pointer::empty_patterns(
+        b"AllocEngineString\0",
+        // To find, search for "unknown". There are many references to this string.
+        // You want to find `Hunk_Alloc()`. Cycle through references until there is a short
+        // function looking like `Hunk_Alloc()`.
+        // Cycle through `Hunk_Alloc()` references until there is a ~30 LOC function taking one
+        // parameter, which is a `*c_char`, and returning an `*c_char`.
+        // You are in `ED_NewString()`.
+        // The function calling it is `AllocEngineString()`.
+        Patterns(&[
+            // 8684
+            pattern!(55 8B EC 8B 45 ?? 50 E8 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 83 C4 04 2B C1),
+        ]),
+        null_mut(),
+    );
+
 pub static build_number: Pointer<unsafe extern "C" fn() -> c_int> = Pointer::empty_patterns(
     b"build_number\0",
     // To find, search for "Half-Life %i/%s (hw build %d)". This function is
@@ -278,6 +295,16 @@ pub static Cvar_RegisterVariable: Pointer<unsafe extern "C" fn(*mut cvar_s)> =
             pattern!(83 EC 14 53 56 8B 74 24),
             // CoF-5936
             pattern!(55 8B EC 83 EC 24 8B 45 ?? 8B 08 51 E8 ?? ?? ?? ?? 83 C4 04 85 C0 74 18 8B 55 08 8B 02 50 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 08),
+        ]),
+        null_mut(),
+    );
+pub static CreateNamedEntity: Pointer<unsafe extern "C" fn(c_int) -> *mut edict_s> =
+    Pointer::empty_patterns(
+        b"CreateNamedEntity\0",
+        // To find, search for "Spawned a NULL entity!"
+        Patterns(&[
+            // 8684
+            pattern!(55 8B EC 53 56 57 8B 7D ?? 85 FF 75 ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 04),
         ]),
         null_mut(),
     );
@@ -1074,6 +1101,7 @@ pub static Z_Free: Pointer<unsafe extern "C" fn(*mut c_void)> = Pointer::empty_p
 pub static client_s_edict_offset: MainThreadCell<Option<usize>> = MainThreadCell::new(None);
 
 static POINTERS: &[&dyn PointerTrait] = &[
+    &AllocEngineString,
     &build_number,
     &CBaseUI__HideGameUI,
     &Cbuf_AddFilteredText,
@@ -1108,6 +1136,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &Con_ToggleConsole_f,
     &com_gamedir,
     &Cvar_RegisterVariable,
+    &CreateNamedEntity,
     &cvar_vars,
     &DrawCrosshair,
     &Draw_FillRGBABlend,
@@ -1776,6 +1805,25 @@ pub unsafe fn get_entity_index(marker: MainThreadMarker, entity: *mut edict_s) -
     }
 
     Some(entity_index as usize)
+}
+
+static SV_CHEATS_PTR: MainThreadRefCell<Option<*mut cvar_s>> = MainThreadRefCell::new(None);
+
+pub unsafe fn is_cheat_enabled(marker: MainThreadMarker) -> bool {
+    let mut sv_cheats = SV_CHEATS_PTR.borrow_mut(marker);
+    let sv_cheats = sv_cheats.get_or_insert(
+        // sv_cheats is in every engine so just unwrap
+        find_cvar(marker, "sv_cheats").unwrap(),
+    );
+
+    let sv_cheats_value = (&**sv_cheats).value;
+
+    // sv_cheats is not enabled
+    if sv_cheats_value == 0. {
+        return false;
+    }
+
+    true
 }
 
 /// # Safety
@@ -2768,6 +2816,8 @@ pub mod exported {
 
                 campath::update_time(marker);
                 timer::on_new_frame(marker);
+
+                cheats::hook::hook_player(marker);
 
                 tas_optimizer::update_client_connection_condition(marker);
                 tas_optimizer::maybe_receive_messages_from_remote_server(marker);

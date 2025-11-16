@@ -501,8 +501,8 @@ fn reset_checkpoints(marker: MainThreadMarker) {
     reset_current_run_checkpoint(marker);
 }
 
-pub fn on_cl_disconnnect(marker: MainThreadMarker) {
-    // resets on disconnect... unless 😳
+pub fn reset_on_new_map(marker: MainThreadMarker) {
+    // resets on new map... unless 😳
     if !BXT_CHECKPOINT_RESET_ON_DISCONNECT.as_bool(marker) {
         return;
     }

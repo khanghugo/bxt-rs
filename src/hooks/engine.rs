@@ -407,6 +407,15 @@ pub static Mod_LeafPVS: Pointer<unsafe extern "C" fn(*mut mleaf_s, *mut model_s)
         ]),
         my_Mod_LeafPVS as _,
     );
+pub static Host_Changelevel2_f: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
+    b"Host_Changelevel2_f\0",
+    // To find, search for "changelevel2 <levelname> : continue game on a new level in the unit".
+    Patterns(&[
+        // 8684
+        pattern!(55 8B EC 81 EC C4 00 00 00 53 56 33 DB 57 89 5D ?? C7 05 ?? ?? ?? ?? 04 00 00 00),
+    ]),
+    my_Host_Changelevel2_f as _,
+);
 pub static Host_FilterTime: Pointer<unsafe extern "C" fn(c_float) -> c_int> =
     Pointer::empty_patterns(
         b"Host_FilterTime\0",
@@ -1113,6 +1122,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &Key_Event,
     &LoadEntityDLLs,
     &Mod_LeafPVS,
+    &Host_Changelevel2_f,
     &Host_FilterTime,
     &host_frametime,
     &Host_InitializeGameDLL,
@@ -1705,21 +1715,6 @@ pub unsafe fn find_entity_in_sphere(
 
         res.push(curr_entity);
         start_entity = curr_entity;
-    }
-
-    Some(res)
-}
-
-pub unsafe fn get_all_entities(marker: MainThreadMarker) -> Option<Vec<*mut edict_s>> {
-    let sv_ = &mut *sv.get_opt(marker)?;
-
-    let entity_count = sv_.num_edicts;
-    let mut res: Vec<*mut edict_s> = vec![];
-    let mut curr_entity = sv_.edicts;
-
-    for _ in 0..entity_count {
-        res.push(curr_entity);
-        curr_entity = curr_entity.add(1);
     }
 
     Some(res)
@@ -2740,6 +2735,19 @@ pub mod exported {
         })
     }
 
+    #[export_name = "Host_Changelevel2_f"]
+    pub unsafe extern "C" fn my_Host_Changelevel2_f() {
+        abort_on_panic(move || {
+            let marker = MainThreadMarker::new();
+
+            // this could be done on "..Shutdown.." functions but whatever
+            checkpoint_menu::reset_on_new_map(marker);
+            sprite::reset_on_new_map(marker);
+
+            Host_Changelevel2_f.get(marker)();
+        })
+    }
+
     #[export_name = "Host_FilterTime"]
     pub unsafe extern "C" fn my_Host_FilterTime(time: c_float) -> c_int {
         abort_on_panic(move || {
@@ -2785,7 +2793,9 @@ pub mod exported {
 
             campath::on_cl_disconnect(marker);
             viewmodel_sway::on_cl_disconnnect(marker);
-            checkpoint_menu::on_cl_disconnnect(marker);
+
+            checkpoint_menu::reset_on_new_map(marker);
+            sprite::reset_on_new_map(marker);
 
             CL_Disconnect.get(marker)();
         })

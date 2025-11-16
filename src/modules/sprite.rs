@@ -4,7 +4,7 @@ use std::ffi::CString;
 use std::str::from_utf8;
 
 use super::Module;
-use crate::hooks::engine::{self, con_print, rect_s, SCREENINFO};
+use crate::hooks::engine::{self, client_sprite_s, con_print, rect_s, SCREENINFO};
 use crate::modules::hud::{self};
 use crate::utils::*;
 
@@ -44,6 +44,9 @@ impl SpriteInfo {
     }
 }
 
+// Sprite list can be cached but the others have to be reloaded every changelevel/disconnect
+static SPRITE_LIST: MainThreadCell<Option<(i32, *mut client_sprite_s)>> = MainThreadCell::new(None);
+
 static IS_LOADED: MainThreadCell<bool> = MainThreadCell::new(false);
 pub static DIGIT_SPRITES: MainThreadRefCell<Option<Vec<SpriteInfo>>> = MainThreadRefCell::new(None);
 pub static DIGIT_SPRITE_SIZE: MainThreadCell<Option<(i32, i32)>> = MainThreadCell::new(None);
@@ -69,13 +72,18 @@ pub fn load_sprite(marker: MainThreadMarker) {
         return;
     };
 
-    let mut sprite_count = 0;
-    let sprite_list = unsafe {
-        ((&*engine::cl_enginefuncs.get(marker)).pfnSPR_GetList)(
-            sprite_hud_file.as_ptr(),
-            &mut sprite_count,
-        )
-    };
+    let (sprite_count, sprite_list) = SPRITE_LIST.get(marker).unwrap_or({
+        let mut sprite_count = 0;
+
+        let sprite_list = unsafe {
+            ((&*engine::cl_enginefuncs.get(marker)).pfnSPR_GetList)(
+                sprite_hud_file.as_ptr(),
+                &mut sprite_count,
+            )
+        };
+
+        (sprite_count, sprite_list)
+    });
 
     // fill with default value so it is easier to add into it
     let mut digit_sprites: Vec<SpriteInfo> = vec![SpriteInfo::default(); 10];
@@ -148,4 +156,10 @@ pub fn load_sprite(marker: MainThreadMarker) {
     }
 
     IS_LOADED.set(marker, true);
+}
+
+pub fn reset_on_new_map(marker: MainThreadMarker) {
+    IS_LOADED.set(marker, false);
+    *DIGIT_SPRITES.borrow_mut(marker) = None;
+    DIGIT_SPRITE_SIZE.set(marker, None);
 }

@@ -47,11 +47,13 @@ pub mod shake_remove;
 pub mod show_player_in_hltv;
 pub mod skybox_change;
 pub mod skybox_remove;
+pub mod sprite;
 pub mod tas_logging;
 pub mod tas_optimizer;
 pub mod tas_recording;
 pub mod tas_server_time_fix;
 pub mod tas_studio;
+pub mod timer;
 pub mod triangle_drawing;
 pub mod user_defined_menu;
 pub mod viewmodel_remove;
@@ -124,6 +126,8 @@ pub static MODULES: &[&dyn Module] = &[
     &tas_recording::TasRecording,
     &tas_server_time_fix::TasServerTimeFix,
     &tas_studio::TasStudio,
+    &timer::Timer,
+    &sprite::Sprite,
     &triangle_drawing::TriangleDrawing,
     &user_defined_menu::UserDefinedMenu,
     &viewmodel_remove::ViewmodelRemove,

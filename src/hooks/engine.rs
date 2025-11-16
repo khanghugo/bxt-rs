@@ -17,6 +17,8 @@ use crate::ffi::command::cmd_function_s;
 use crate::ffi::cvar::cvar_s;
 use crate::ffi::edict::edict_s;
 use crate::ffi::playermove::playermove_s;
+use crate::ffi::progdefs::globalvars_t;
+use crate::ffi::server::server_t;
 use crate::ffi::triangleapi::triangleapi_s;
 use crate::ffi::usercmd::usercmd_s;
 #[cfg(windows)]
@@ -278,6 +280,16 @@ pub static Cvar_RegisterVariable: Pointer<unsafe extern "C" fn(*mut cvar_s)> =
         null_mut(),
     );
 pub static cvar_vars: Pointer<*mut *mut cvar_s> = Pointer::empty(b"cvar_vars\0");
+pub static Draw_FillRGBA: Pointer<
+    unsafe extern "C" fn(c_int, c_int, c_int, c_int, c_int, c_int, c_int, c_int),
+> = Pointer::empty_patterns(
+    b"Draw_FillRGBA\0",
+    // 69.
+    Patterns(&[
+        // 8684
+    ]),
+    null_mut(),
+);
 pub static Draw_FillRGBABlend: Pointer<
     unsafe extern "C" fn(c_int, c_int, c_int, c_int, c_int, c_int, c_int, c_int),
 > = Pointer::empty_patterns(
@@ -315,6 +327,16 @@ pub static DrawCrosshair: Pointer<unsafe extern "C" fn(c_int, c_int)> = Pointer:
     ]),
     my_DrawCrosshair as _,
 );
+pub static FindEntityInSphere: Pointer<
+    unsafe extern "C" fn(*const edict_s, *const [f32; 3], c_float) -> *mut edict_s,
+> = Pointer::empty_patterns(
+    b"FindEntityInSphere\0",
+    // what
+    Patterns(&[
+            // 8684
+        ]),
+    null_mut(),
+);
 pub static frametime_remainder: Pointer<*mut f64> = Pointer::empty(
     // Not a real symbol name.
     b"frametime_remainder\0",
@@ -336,6 +358,7 @@ pub static GL_BeginRendering: Pointer<
     null_mut(),
 );
 pub static gEntityInterface: Pointer<*mut DllFunctions> = Pointer::empty(b"gEntityInterface\0");
+pub static gGlobalVariables: Pointer<*mut globalvars_t> = Pointer::empty(b"gGlobalVariables\0");
 pub static gLoadSky: Pointer<*mut c_int> = Pointer::empty(b"gLoadSky\0");
 pub static g_svmove: Pointer<*mut playermove_s> = Pointer::empty(b"g_svmove\0");
 pub static Key_Event: Pointer<unsafe extern "C" fn(c_int, c_int)> = Pointer::empty_patterns(
@@ -819,7 +842,36 @@ pub static SCR_DrawPause: Pointer<unsafe extern "C" fn()> = Pointer::empty_patte
 );
 pub static scr_fov_value: Pointer<*mut c_float> = Pointer::empty(b"scr_fov_value\0");
 pub static shm: Pointer<*mut *mut dma_t> = Pointer::empty(b"shm\0");
-pub static sv: Pointer<*mut c_void> = Pointer::empty(b"sv\0");
+pub static SPR_DrawAdditive: Pointer<unsafe extern "C" fn(c_int, c_int, c_int, *const rect_s)> =
+    Pointer::empty_patterns(
+        b"SPR_DrawAdditive\0",
+        // 69th
+        Patterns(&[]),
+        null_mut(),
+    );
+pub static SPR_GetList: Pointer<
+    unsafe extern "C" fn(*const c_char, *mut c_int) -> *mut client_sprite_s,
+> = Pointer::empty_patterns(
+    b"SPR_GetList\0",
+    // 69th
+    Patterns(&[]),
+    null_mut(),
+);
+pub static SPR_Load: Pointer<unsafe extern "C" fn(*const c_char) -> c_int> =
+    Pointer::empty_patterns(
+        b"SPR_Load\0",
+        // 69th
+        Patterns(&[]),
+        null_mut(),
+    );
+pub static SPR_Set: Pointer<unsafe extern "C" fn(c_int, c_int, c_int, c_int)> =
+    Pointer::empty_patterns(
+        b"SPR_Set\0",
+        // 69th
+        Patterns(&[]),
+        null_mut(),
+    );
+pub static sv: Pointer<*mut server_t> = Pointer::empty(b"sv\0");
 pub static sv_edicts: Pointer<*mut *mut edict_s> = Pointer::empty(
     // Not a real symbol name.
     b"sv_edicts\0",
@@ -873,6 +925,16 @@ pub static SV_Frame: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
     ]),
     my_SV_Frame as _,
 );
+pub static SV_Impact: Pointer<unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void)> =
+    Pointer::empty_patterns(
+        b"SV_Impact\0",
+        // To find, search for "%s timed out". It is used in SV_CheckTimeouts(), which is called by
+        // SV_Frame().
+        Patterns(&[
+        // 6153
+    ]),
+        my_SV_Impact as _,
+    );
 pub static SV_RunCmd: Pointer<unsafe extern "C" fn(*mut usercmd_s, c_int)> =
     Pointer::empty_patterns(
         b"SV_RunCmd\0",
@@ -1069,11 +1131,14 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &Cvar_RegisterVariable,
     &cvar_vars,
     &DrawCrosshair,
+    &Draw_FillRGBA,
     &Draw_FillRGBABlend,
     &Draw_String,
+    &FindEntityInSphere,
     &frametime_remainder,
     &GL_BeginRendering,
     &gEntityInterface,
+    &gGlobalVariables,
     &gLoadSky,
     &g_svmove,
     &Key_Event,
@@ -1123,6 +1188,10 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &SCR_DrawPause,
     &scr_fov_value,
     &shm,
+    &SPR_DrawAdditive,
+    &SPR_GetList,
+    &SPR_Load,
+    &SPR_Set,
     &sv,
     &sv_edicts,
     &sv_num_edicts,
@@ -1132,6 +1201,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &SV_AddLinksToPM_,
     &SV_ExecuteClientMessage,
     &SV_Frame,
+    &SV_Impact,
     &SV_RunCmd,
     &SV_StartSound,
     &Sys_VID_FlipScreen,
@@ -1150,12 +1220,88 @@ static POINTERS: &[&dyn PointerTrait] = &[
 #[cfg(windows)]
 static ORIGINAL_FUNCTIONS: MainThreadRefCell<Vec<*mut c_void>> = MainThreadRefCell::new(Vec::new());
 
+type qboolean = c_int;
+
 #[repr(C)]
 pub struct DllFunctions {
-    _padding_1: [u8; 136],
-    pub pm_move: Option<unsafe extern "C" fn(*mut playermove_s, c_int)>,
-    _padding_2: [u8; 32],
-    pub cmd_start: Option<unsafe extern "C" fn(*mut c_void, *mut usercmd_s, c_uint)>,
+    pub pfnGameInit: Option<unsafe extern "C" fn()>,
+    pub pfnSpawn: Option<unsafe extern "C" fn(*mut edict_s) -> c_int>,
+    pub pfnThink: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnUse: Option<unsafe extern "C" fn(*mut edict_s, *mut edict_s)>,
+    pub pfnTouch: Option<unsafe extern "C" fn(*mut edict_s, *mut edict_s)>,
+    pub pfnBlocked: Option<unsafe extern "C" fn(*mut edict_s, *mut edict_s)>,
+    pub pfnKeyValue: Option<unsafe extern "C" fn(*mut edict_s, *mut c_void)>,
+    pub pfnSave: Option<unsafe extern "C" fn(*mut edict_s, *mut c_void)>,
+    pub pfnRestore: Option<unsafe extern "C" fn(*mut edict_s, *mut c_void, c_int) -> c_int>,
+    pub pfnSetAbsBox: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnSaveWriteFields:
+        Option<unsafe extern "C" fn(*mut c_void, *const c_char, *mut c_void, *mut c_void, c_int)>,
+    pub pfnSaveReadFields:
+        Option<unsafe extern "C" fn(*mut c_void, *const c_char, *mut c_void, *mut c_void, c_int)>,
+    pub pfnSaveGlobalState: Option<unsafe extern "C" fn(*mut c_void)>,
+    pub pfnRestoreGlobalState: Option<unsafe extern "C" fn(*mut c_void)>,
+    pub pfnResetGlobalState: Option<unsafe extern "C" fn()>,
+    pub pfnClientConnect: Option<
+        unsafe extern "C" fn(*mut edict_s, *const c_char, *const c_char, *mut c_char) -> qboolean,
+    >,
+    pub pfnClientDisconnect: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnClientKill: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnClientPutInServer: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnClientCommand: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnClientUserInfoChanged: Option<unsafe extern "C" fn(*mut edict_s, *mut c_char)>,
+    pub pfnServerActivate: Option<unsafe extern "C" fn(*mut edict_s, c_int, c_int)>,
+    pub pfnServerDeactivate: Option<unsafe extern "C" fn()>,
+    pub pfnPlayerPreThink: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnPlayerPostThink: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnStartFrame: Option<unsafe extern "C" fn()>,
+    pub pfnParmsNewLevel: Option<unsafe extern "C" fn()>,
+    pub pfnParmsChangeLevel: Option<unsafe extern "C" fn()>,
+    pub pfnGetGameDescription: Option<unsafe extern "C" fn() -> *const c_char>,
+    pub pfnPlayerCustomization: Option<unsafe extern "C" fn(*mut edict_s, *mut c_void)>,
+    pub pfnSpectatorConnect: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnSpectatorDisconnect: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnSpectatorThink: Option<unsafe extern "C" fn(*mut edict_s)>,
+    pub pfnSys_Error: Option<unsafe extern "C" fn(*const c_char)>,
+    pub pm_move: Option<unsafe extern "C" fn(*mut playermove_s, qboolean)>,
+    pub pfnPM_Init: Option<unsafe extern "C" fn(*mut playermove_s)>,
+    pub pfnPM_FindTextureType: Option<unsafe extern "C" fn(*mut c_char) -> c_char>,
+    pub pfnSetupVisibility:
+        Option<unsafe extern "C" fn(*mut edict_s, *mut edict_s, *mut *mut u8, *mut *mut u8)>,
+    pub pfnUpdateClientData: Option<unsafe extern "C" fn(*const edict_s, c_int, *mut c_void)>,
+    pub pfnAddToFullPack: Option<
+        unsafe extern "C" fn(
+            *mut c_void,
+            c_int,
+            *mut edict_s,
+            *mut edict_s,
+            c_int,
+            c_int,
+            *mut u8,
+        ) -> c_int,
+    >,
+    pub pfnCreateBaseline: Option<
+        unsafe extern "C" fn(
+            c_int,
+            c_int,
+            *mut c_void,
+            *mut edict_s,
+            c_int,
+            *mut c_float,
+            *mut c_float,
+        ),
+    >,
+    pub pfnRegisterEncoders: Option<unsafe extern "C" fn()>,
+    pub pfnGetWeaponData: Option<unsafe extern "C" fn(*mut edict_s, *mut c_void) -> c_int>,
+    pub cmd_start: Option<unsafe extern "C" fn(*const edict_s, *const usercmd_s, c_uint)>,
+    pub pfnCmdEnd: Option<unsafe extern "C" fn(*const edict_s)>,
+    pub pfnConnectionlessPacket: Option<
+        unsafe extern "C" fn(*const c_void, *const c_char, *mut c_char, *mut c_int) -> c_int,
+    >,
+    pub pfnGetHullBounds: Option<unsafe extern "C" fn(c_int, *mut c_float, *mut c_float) -> c_int>,
+    pub pfnCreateInstancedBaselines: Option<unsafe extern "C" fn()>,
+    pub pfnInconsistentFile:
+        Option<unsafe extern "C" fn(*const edict_s, *const c_char, *mut c_char) -> c_int>,
+    pub pfnAllowLagCompensation: Option<unsafe extern "C" fn() -> c_int>,
 }
 
 #[repr(C)]
@@ -1357,6 +1503,24 @@ pub struct ref_params_s {
 }
 
 #[repr(C)]
+pub struct client_sprite_s {
+    pub sprite_entity_name: [u8; 64],
+    pub sprite_file_name: [u8; 64],
+    pub hspr: i32,
+    pub iRes: i32,
+    pub rc: rect_s,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct rect_s {
+    pub left: i32,
+    pub right: i32,
+    pub top: i32,
+    pub bottom: i32,
+}
+
+#[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct sfx_s {
     pub name: [c_char; 64],
@@ -1530,6 +1694,128 @@ pub unsafe fn find_cvar(marker: MainThreadMarker, name: &str) -> Option<*mut cva
     }
 
     None
+}
+
+pub unsafe fn get_table_string_raw(
+    marker: MainThreadMarker,
+    offset: u32, // string_t
+) -> Option<*const c_char> {
+    let ptr = gGlobalVariables.get_opt(marker)?;
+
+    (*ptr).pStringBase.add(offset as usize).into()
+}
+
+pub unsafe fn get_table_string<'a>(
+    marker: MainThreadMarker,
+    offset: u32, // string_t
+) -> Option<&'a str> {
+    let text_ptr = get_table_string_raw(marker, offset)?;
+    let text = unsafe { CStr::from_ptr(text_ptr) };
+    text.to_str().ok()
+}
+
+pub unsafe fn find_entity_in_sphere(
+    marker: MainThreadMarker,
+    origin: [f32; 3],
+    radius: f32,
+) -> Option<Vec<*mut edict_s>> {
+    let f = FindEntityInSphere.get_opt(marker)?;
+
+    let mut res: Vec<*mut edict_s> = vec![];
+
+    // start entity has to be null
+    // check with CBasePlayer::PlayerUse to see how it is used
+    let mut start_entity: *mut edict_s = null_mut();
+
+    loop {
+        let curr_entity = f(start_entity, origin.as_ptr() as *const [f32; 3], radius);
+
+        if curr_entity.is_null()
+        // FNullEnt check.
+        // This function does not return null but entity 0 if nothing found
+        || curr_entity == *sv_edicts.get(marker)
+        {
+            break;
+        }
+
+        res.push(curr_entity);
+        start_entity = curr_entity;
+    }
+
+    Some(res)
+}
+
+pub unsafe fn get_all_entities(marker: MainThreadMarker) -> Option<Vec<*mut edict_s>> {
+    let sv_ = &mut *sv.get_opt(marker)?;
+
+    let entity_count = sv_.num_edicts;
+    let mut res: Vec<*mut edict_s> = vec![];
+    let mut curr_entity = sv_.edicts;
+
+    for _ in 0..entity_count {
+        res.push(curr_entity);
+        curr_entity = curr_entity.add(1);
+    }
+
+    Some(res)
+}
+
+pub unsafe fn get_entities_by_classname(
+    marker: MainThreadMarker,
+    classname: &str,
+) -> Option<Vec<*mut edict_s>> {
+    let sv_ = &mut *sv.get_opt(marker)?;
+
+    let entity_count = sv_.num_edicts;
+    let mut res: Vec<*mut edict_s> = vec![];
+
+    // This does not work. The engine allocates new string for the same classname?????????
+    // let mut classname_cached: Option<u32> = None;
+
+    for i in 0..entity_count {
+        let curr_entity = sv_.edicts.add(i as usize);
+        let curr_entity_deref = &*curr_entity;
+
+        if curr_entity_deref.free != 0 {
+            continue;
+        }
+
+        // if result is cached, just don't do anything further than this
+        // if let Some(classname_cached) = classname_cached {
+        //     if curr_entity_deref.v.classname == classname_cached {
+        //         res.push(curr_entity);
+        //     }
+
+        //     continue;
+        // }
+
+        let Some(curr_entity_classname) = get_table_string(marker, curr_entity_deref.v.classname)
+        else {
+            continue;
+        };
+
+        if curr_entity_classname == classname {
+            // classname_cached = Some(curr_entity_deref.v.classname);
+            res.push(curr_entity);
+        }
+    }
+
+    Some(res)
+}
+
+pub unsafe fn get_entity_index(marker: MainThreadMarker, entity: *mut edict_s) -> Option<usize> {
+    let sv_ = &*sv.get_opt(marker)?;
+
+    let entity_count = sv_.num_edicts;
+    let start_entity = sv_.edicts;
+
+    let entity_index = entity.offset_from(start_entity);
+
+    if entity_index > entity_count as isize || entity_index == 0 {
+        return None;
+    }
+
+    Some(entity_index as usize)
 }
 
 /// # Safety
@@ -2397,6 +2683,14 @@ pub mod exported {
         })
     }
 
+    #[export_name = "SV_Impact"]
+    pub unsafe extern "C" fn my_SV_Impact(a: *mut c_void, b: *mut c_void, c: *mut c_void) {
+        abort_on_panic(move || {
+            let marker = MainThreadMarker::new();
+            SV_Impact.get(marker)(a, b, c);
+        })
+    }
+
     #[export_name = "_Z18Sys_VID_FlipScreenv"]
     pub unsafe extern "C" fn my_Sys_VID_FlipScreen() {
         abort_on_panic(move || {
@@ -2496,6 +2790,7 @@ pub mod exported {
                 }
 
                 campath::update_time(marker);
+                timer::on_new_frame(marker);
 
                 tas_optimizer::update_client_connection_condition(marker);
                 tas_optimizer::maybe_receive_messages_from_remote_server(marker);

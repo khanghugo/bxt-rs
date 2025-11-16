@@ -13,6 +13,7 @@ use crate::modules::commands::{Command, Commands};
 use crate::modules::cvars::{CVar, CVars};
 use crate::modules::menu::{self, CustomMenu, CustomMenuItem};
 use crate::modules::player_movement_tracing::{self, player_trace};
+use crate::modules::timer;
 use crate::utils::*;
 
 pub struct CheckpointMenu;
@@ -42,6 +43,7 @@ impl Module for CheckpointMenu {
             &BXT_CHECKPOINT_WITH_VEL,
             &BXT_CHECKPOINT_CONDITION,
             &BXT_CHECKPOINT_RESET_ON_DISCONNECT,
+            &BXT_CHECKPOINT_RESTORE_TIME,
         ];
         CVARS
     }
@@ -70,7 +72,7 @@ static BXT_CHECKPOINT_CREATE: Command = Command::new(
     handler!(
         "bxt_checkpoint_create
 
-Creates a checkpoint",
+Creates a checkpoint.",
         create_checkpoint as fn(_)
     ),
 );
@@ -80,7 +82,7 @@ static BXT_CHECKPOINT_GOTO: Command = Command::new(
     handler!(
         "bxt_checkpoint_goto
 
-Gotos current checkpoint",
+Gotos current checkpoint.",
         go_checkpoint as fn(_)
     ),
 );
@@ -90,7 +92,7 @@ static BXT_CHECKPOINT_GOTO_LAST: Command = Command::new(
     handler!(
         "bxt_checkpoint_goto_last
 
-Gotos last checkpoint and removes current checkpoint",
+Gotos last checkpoint and removes current checkpoint.",
         go_last_checkpoint as fn(_)
     ),
 );
@@ -100,7 +102,7 @@ static BXT_CHECKPOINT_GOTO_START: Command = Command::new(
     handler!(
         "bxt_checkpoint_goto_start
 
-Gotos start checkpoint and resets the run",
+Gotos start checkpoint and resets the run.",
         go_start as fn(_)
     ),
 );
@@ -110,7 +112,7 @@ static BXT_CHECKPOINT_SET_START: Command = Command::new(
     handler!(
         "bxt_checkpoint_set_start
 
-Sets start checkpoint",
+Sets start checkpoint.",
         set_start as fn(_)
     ),
 );
@@ -138,7 +140,14 @@ static BXT_CHECKPOINT_RESET_ON_DISCONNECT: CVar = CVar::new(
     b"bxt_checkpoint_reset_on_disconnect\0",
     b"1\0",
     "\
-Whether checkpoints and related data reset upon disconnect",
+Whether checkpoints and related data reset upon disconnect.",
+);
+
+static BXT_CHECKPOINT_RESTORE_TIME: CVar = CVar::new(
+    b"bxt_checkpoint_restore_time\0",
+    b"1\0",
+    "\
+Whether checkpoints restore timer data at checkpoint.",
 );
 
 fn is_enabled(marker: MainThreadMarker) -> bool {
@@ -180,6 +189,7 @@ struct CheckPointEntry {
     velocity: Vec3,
     is_duck: bool,
     gravity: f32,
+    time: f32,
 }
 
 static CHECKPOINT_DATA: MainThreadRefCell<Vec<CheckPointEntry>> = MainThreadRefCell::new(vec![]);
@@ -250,6 +260,7 @@ fn go_checkpoint(marker: MainThreadMarker) {
         velocity,
         is_duck,
         gravity,
+        time,
     }) = binding.last()
     else {
         return;
@@ -288,6 +299,11 @@ fn go_checkpoint(marker: MainThreadMarker) {
     // increment go checkpoint count
     let go_check_count = GO_CHECKPOINT_COUNT.get(marker);
     GO_CHECKPOINT_COUNT.set(marker, go_check_count + 1);
+
+    // checkpoint timer
+    if BXT_CHECKPOINT_RESTORE_TIME.as_bool(marker) {
+        timer::TIME.borrow_mut(marker).set_time(*time);
+    }
 }
 
 fn go_last_checkpoint(marker: MainThreadMarker) {
@@ -326,6 +342,23 @@ fn go_start(marker: MainThreadMarker) {
 
 fn set_start(marker: MainThreadMarker) {
     START_POINT.set(marker, get_player_entry(marker));
+}
+
+macro_rules! toggle_item {
+    ($label:literal, $cvar:expr) => {{
+        CustomMenuItem::Toggle {
+            label: $label.into(),
+            value: Arc::new(move |marker| $cvar.as_bool(marker)),
+            callback: Arc::new(move |marker| {
+                let value = !$cvar.as_bool(marker);
+
+                prepend_command(
+                    marker,
+                    format!("{} {}\n", $cvar.name_str(), if value { "1" } else { "0" }).as_str(),
+                );
+            }),
+        }
+    }};
 }
 
 fn get_checkpoint_menu() -> menu::CustomMenu {
@@ -378,23 +411,7 @@ fn get_checkpoint_menu() -> menu::CustomMenu {
             },
             // Page 2
             // 1
-            CustomMenuItem::Toggle {
-                label: "Restore Velocity".into(),
-                value: Arc::new(move |marker| BXT_CHECKPOINT_WITH_VEL.as_bool(marker)),
-                callback: Arc::new(move |marker| {
-                    let value = !BXT_CHECKPOINT_WITH_VEL.as_bool(marker);
-
-                    prepend_command(
-                        marker,
-                        format!(
-                            "{} {}\n",
-                            BXT_CHECKPOINT_WITH_VEL.name_str(),
-                            if value { "1" } else { "0" }
-                        )
-                        .as_str(),
-                    );
-                }),
-            },
+            toggle_item!("Restore Velocity", BXT_CHECKPOINT_WITH_VEL),
             // 2
             {
                 let options = vec![
@@ -420,23 +437,9 @@ fn get_checkpoint_menu() -> menu::CustomMenu {
                 }
             },
             // 3
-            CustomMenuItem::Toggle {
-                label: "Reset on Disconnect".into(),
-                value: Arc::new(move |marker| BXT_CHECKPOINT_RESET_ON_DISCONNECT.as_bool(marker)),
-                callback: Arc::new(move |marker| {
-                    let value = !BXT_CHECKPOINT_RESET_ON_DISCONNECT.as_bool(marker);
-
-                    prepend_command(
-                        marker,
-                        format!(
-                            "{} {}\n",
-                            BXT_CHECKPOINT_RESET_ON_DISCONNECT.name_str(),
-                            if value { "1" } else { "0" }
-                        )
-                        .as_str(),
-                    );
-                }),
-            },
+            toggle_item!("Reset on Disconnect", BXT_CHECKPOINT_RESET_ON_DISCONNECT),
+            // 4
+            toggle_item!("Restore Time", BXT_CHECKPOINT_RESTORE_TIME),
         ],
     }
 }
@@ -454,12 +457,15 @@ fn get_player_entry(marker: MainThreadMarker) -> Option<CheckPointEntry> {
     let is_duck = (player.v.button & Buttons::IN_DUCK.bits() as i32) != 0
         || (player.v.flags.contains(edict::Flags::FL_DUCKING));
 
+    let time = timer::TIME.borrow(marker).get_time();
+
     let new_entry = CheckPointEntry {
         origin: player.v.origin,
         viewangles: player.v.v_angle,
         velocity: player.v.velocity,
         is_duck,
         gravity: player.v.gravity,
+        time,
     };
 
     Some(new_entry)
@@ -485,10 +491,14 @@ fn is_game_dir(marker: MainThreadMarker, what: &str) -> bool {
     rv
 }
 
-fn reset_checkpoints(marker: MainThreadMarker) {
+pub fn reset_current_run_checkpoint(marker: MainThreadMarker) {
     CHECKPOINT_DATA.borrow_mut(marker).clear();
-    START_POINT.set(marker, None);
     GO_CHECKPOINT_COUNT.set(marker, 0);
+}
+
+fn reset_checkpoints(marker: MainThreadMarker) {
+    START_POINT.set(marker, None);
+    reset_current_run_checkpoint(marker);
 }
 
 pub fn on_cl_disconnnect(marker: MainThreadMarker) {

@@ -21,11 +21,11 @@ pub use timer_hud::*;
 pub struct Timer;
 impl Module for Timer {
     fn name(&self) -> &'static str {
-        "Checkpoint Menu"
+        "bxt-rs Timer"
     }
 
     fn description(&self) -> &'static str {
-        "Checkpoint system with HUD menu."
+        "Timer and goodies"
     }
 
     fn commands(&self) -> &'static [&'static Command] {
@@ -123,7 +123,7 @@ static BXT_TIMER_AUTOSTART: CVar = CVar::new(
     b"bxt_timer_autostart\0",
     b"1\0",
     "\
-Autostarts timer.",
+Automatically starts and stops KZ timer.",
 );
 
 type TimeData = f32;
@@ -147,7 +147,7 @@ impl State {
 
     pub fn set_time(&mut self, time: f32) {
         *self = match self {
-            State::Idle => todo!(),
+            State::Idle => State::Running(time),
             State::Running(_) => State::Running(time),
             State::Stopped(_) => State::Stopped(time),
         };

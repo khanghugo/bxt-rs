@@ -22,10 +22,7 @@ impl Module for Sprite {
         // client::HudVidInitFunc.is_set(marker) // TODO: delayed dependency eventually
         engine::ClientDLL_Init.is_set(marker)
             && engine::hudGetScreenInfo.is_set(marker)
-            && engine::SPR_GetList.is_set(marker)
-            && engine::SPR_Load.is_set(marker)
-            && engine::SPR_DrawAdditive.is_set(marker)
-            && engine::SPR_Set.is_set(marker)
+            && engine::cl_enginefuncs.is_set(marker)
             && engine::Con_Printf.is_set(marker)
     }
 }
@@ -73,8 +70,12 @@ pub fn load_sprite(marker: MainThreadMarker) {
     };
 
     let mut sprite_count = 0;
-    let sprite_list =
-        unsafe { engine::SPR_GetList.get(marker)(sprite_hud_file.as_ptr(), &mut sprite_count) };
+    let sprite_list = unsafe {
+        ((&*engine::cl_enginefuncs.get(marker)).pfnSPR_GetList)(
+            sprite_hud_file.as_ptr(),
+            &mut sprite_count,
+        )
+    };
 
     // fill with default value so it is easier to add into it
     let mut digit_sprites: Vec<SpriteInfo> = vec![SpriteInfo::default(); 10];
@@ -123,7 +124,9 @@ pub fn load_sprite(marker: MainThreadMarker) {
                     continue;
                 };
 
-                let loaded_sprite_ptr = unsafe { engine::SPR_Load.get(marker)(spr_path.as_ptr()) };
+                let loaded_sprite_ptr = unsafe {
+                    ((&*engine::cl_enginefuncs.get(marker)).pfnSPR_Load)(spr_path.as_ptr())
+                };
                 let new_digit_sprite_entry = SpriteInfo {
                     pointer: loaded_sprite_ptr,
                     rect: curr_sprite.rc,

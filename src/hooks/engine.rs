@@ -12,6 +12,7 @@ use std::str::FromStr;
 use bxt_macros::pattern;
 use bxt_patterns::Patterns;
 
+use crate::ffi::cl_enginefuncs::cl_enginefuncs_s;
 use crate::ffi::com_model::{mleaf_s, model_s};
 use crate::ffi::command::cmd_function_s;
 use crate::ffi::cvar::cvar_s;
@@ -89,6 +90,7 @@ pub static CL_Disconnect: Pointer<unsafe extern "C" fn()> = Pointer::empty_patte
     ]),
     my_CL_Disconnect as _,
 );
+pub static cl_enginefuncs: Pointer<*mut cl_enginefuncs_s> = Pointer::empty(b"cl_enginefuncs\0");
 pub static cl_funcs: Pointer<*mut ClientDllFunctions> = Pointer::empty(b"cl_funcs\0");
 pub static CL_GameDir_f: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
     b"CL_GameDir_f\0",
@@ -280,16 +282,6 @@ pub static Cvar_RegisterVariable: Pointer<unsafe extern "C" fn(*mut cvar_s)> =
         null_mut(),
     );
 pub static cvar_vars: Pointer<*mut *mut cvar_s> = Pointer::empty(b"cvar_vars\0");
-pub static Draw_FillRGBA: Pointer<
-    unsafe extern "C" fn(c_int, c_int, c_int, c_int, c_int, c_int, c_int, c_int),
-> = Pointer::empty_patterns(
-    b"Draw_FillRGBA\0",
-    // 69.
-    Patterns(&[
-        // 8684
-    ]),
-    null_mut(),
-);
 pub static Draw_FillRGBABlend: Pointer<
     unsafe extern "C" fn(c_int, c_int, c_int, c_int, c_int, c_int, c_int, c_int),
 > = Pointer::empty_patterns(
@@ -331,10 +323,15 @@ pub static FindEntityInSphere: Pointer<
     unsafe extern "C" fn(*const edict_s, *const [f32; 3], c_float) -> *mut edict_s,
 > = Pointer::empty_patterns(
     b"FindEntityInSphere\0",
-    // what
+    // To find, search for "NUM_FOR_EDICT: bad pointer". You are inside `NUM_FOR_EDICT()`.
+    // Cycle through references of `NUM_FOR_EDICT()`
+    // until you land in a ~60 LOC function returns a pointer with 3 parameters where second
+    // parameter is a pointer to float or a float and third parameter is a float.
+    // That function will have the third parameter multiply by itself and be stored in a variable.
     Patterns(&[
-            // 8684
-        ]),
+        // 8684
+        pattern!(55 8B EC 51 8B 45 ?? 85 C0 74 ?? 50 E8 ?? ?? ?? ?? 83 C4 04),
+    ]),
     null_mut(),
 );
 pub static frametime_remainder: Pointer<*mut f64> = Pointer::empty(
@@ -440,6 +437,17 @@ pub static Host_InitializeGameDLL: Pointer<unsafe extern "C" fn()> = Pointer::em
         pattern!(E8 ?? ?? ?? ?? A1 ?? ?? ?? ?? 85 C0 74 ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 04 C3),
         // CoF-5936
         pattern!(55 8B EC 83 EC 0C C6 45 ?? 2D),
+    ]),
+    null_mut(),
+);
+pub static Host_Kill_f: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
+    b"Host_Kill_f\0",
+    // To find, search for "kill yourself -- ".
+    // This function is for finding `gGlobalVariables.time`,
+    // which is the start of `gGlobalVariables`.
+    Patterns(&[
+        // 8684
+        pattern!(83 3D ?? ?? ?? ?? 01 75 05 E9 92 BC FC FF 8B 0D ?? ?? ?? ?? D9 81 ?? ?? ?? ?? D8 1D),
     ]),
     null_mut(),
 );
@@ -842,35 +850,6 @@ pub static SCR_DrawPause: Pointer<unsafe extern "C" fn()> = Pointer::empty_patte
 );
 pub static scr_fov_value: Pointer<*mut c_float> = Pointer::empty(b"scr_fov_value\0");
 pub static shm: Pointer<*mut *mut dma_t> = Pointer::empty(b"shm\0");
-pub static SPR_DrawAdditive: Pointer<unsafe extern "C" fn(c_int, c_int, c_int, *const rect_s)> =
-    Pointer::empty_patterns(
-        b"SPR_DrawAdditive\0",
-        // 69th
-        Patterns(&[]),
-        null_mut(),
-    );
-pub static SPR_GetList: Pointer<
-    unsafe extern "C" fn(*const c_char, *mut c_int) -> *mut client_sprite_s,
-> = Pointer::empty_patterns(
-    b"SPR_GetList\0",
-    // 69th
-    Patterns(&[]),
-    null_mut(),
-);
-pub static SPR_Load: Pointer<unsafe extern "C" fn(*const c_char) -> c_int> =
-    Pointer::empty_patterns(
-        b"SPR_Load\0",
-        // 69th
-        Patterns(&[]),
-        null_mut(),
-    );
-pub static SPR_Set: Pointer<unsafe extern "C" fn(c_int, c_int, c_int, c_int)> =
-    Pointer::empty_patterns(
-        b"SPR_Set\0",
-        // 69th
-        Patterns(&[]),
-        null_mut(),
-    );
 pub static sv: Pointer<*mut server_t> = Pointer::empty(b"sv\0");
 pub static sv_edicts: Pointer<*mut *mut edict_s> = Pointer::empty(
     // Not a real symbol name.
@@ -925,16 +904,6 @@ pub static SV_Frame: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
     ]),
     my_SV_Frame as _,
 );
-pub static SV_Impact: Pointer<unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void)> =
-    Pointer::empty_patterns(
-        b"SV_Impact\0",
-        // To find, search for "%s timed out". It is used in SV_CheckTimeouts(), which is called by
-        // SV_Frame().
-        Patterns(&[
-        // 6153
-    ]),
-        my_SV_Impact as _,
-    );
 pub static SV_RunCmd: Pointer<unsafe extern "C" fn(*mut usercmd_s, c_int)> =
     Pointer::empty_patterns(
         b"SV_RunCmd\0",
@@ -1103,6 +1072,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &Cbuf_AddTextToBuffer,
     &Cbuf_InsertText,
     &CL_Disconnect,
+    &cl_enginefuncs,
     &cl_funcs,
     &CL_GameDir_f,
     &CL_IsSpectateOnly,
@@ -1131,7 +1101,6 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &Cvar_RegisterVariable,
     &cvar_vars,
     &DrawCrosshair,
-    &Draw_FillRGBA,
     &Draw_FillRGBABlend,
     &Draw_String,
     &FindEntityInSphere,
@@ -1147,6 +1116,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &Host_FilterTime,
     &host_frametime,
     &Host_InitializeGameDLL,
+    &Host_Kill_f,
     &Host_NextDemo,
     &Host_Shutdown,
     &Host_Tell_f,
@@ -1188,10 +1158,6 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &SCR_DrawPause,
     &scr_fov_value,
     &shm,
-    &SPR_DrawAdditive,
-    &SPR_GetList,
-    &SPR_Load,
-    &SPR_Set,
     &sv,
     &sv_edicts,
     &sv_num_edicts,
@@ -1201,7 +1167,6 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &SV_AddLinksToPM_,
     &SV_ExecuteClientMessage,
     &SV_Frame,
-    &SV_Impact,
     &SV_RunCmd,
     &SV_StartSound,
     &Sys_VID_FlipScreen,
@@ -1922,7 +1887,10 @@ pub unsafe fn find_pointers(marker: MainThreadMarker, base: *mut c_void, size: u
     let ptr = &ClientDLL_Init;
     match ptr.pattern_index(marker) {
         // 6153
-        Some(0) => cl_funcs.set(marker, ptr.by_offset(marker, 187)),
+        Some(0) => {
+            cl_funcs.set(marker, ptr.by_offset(marker, 187));
+            cl_enginefuncs.set(marker, ptr.by_offset(marker, 181));
+        }
         _ => (),
     }
 
@@ -1959,6 +1927,15 @@ pub unsafe fn find_pointers(marker: MainThreadMarker, base: *mut c_void, size: u
         Some(1) => cvar_vars.set(marker, ptr.by_offset(marker, 122)),
         // CoF-5936
         Some(2) => cvar_vars.set(marker, ptr.by_offset(marker, 183)),
+        _ => (),
+    }
+
+    let ptr = &Host_Kill_f;
+    match ptr.pattern_index(marker) {
+        // 8684
+        Some(0) => {
+            gGlobalVariables.set(marker, ptr.by_offset(marker, 86));
+        }
         _ => (),
     }
 
@@ -2680,14 +2657,6 @@ pub mod exported {
 
             tas_recording::on_sv_frame_end(marker);
             tas_logging::end_physics_frame(marker);
-        })
-    }
-
-    #[export_name = "SV_Impact"]
-    pub unsafe extern "C" fn my_SV_Impact(a: *mut c_void, b: *mut c_void, c: *mut c_void) {
-        abort_on_panic(move || {
-            let marker = MainThreadMarker::new();
-            SV_Impact.get(marker)(a, b, c);
         })
     }
 

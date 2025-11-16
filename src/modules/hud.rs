@@ -24,7 +24,7 @@ impl Module for Hud {
         engine::hudGetScreenInfo.is_set(marker)
             // TODO: Add back when delayed dependencies are implemented.
             // && client::HudRedrawFunc.is_set(marker)
-            && engine::Draw_FillRGBA.is_set(marker)
+            && engine::cl_enginefuncs.is_set(marker)
             && engine::Draw_FillRGBABlend.is_set(marker)
             && engine::Draw_String.is_set(marker)
             && sprite::Sprite.is_enabled(marker)
@@ -60,7 +60,7 @@ pub struct MultiHUDLine<'a> {
 
 // It is convenient to not managing states
 pub struct SpriteDigitLine<'a> {
-    marker: MainThreadMarker,
+    _marker: MainThreadMarker,
     draw: &'a Draw,
     pos: IVec2,
     rgb: IVec3,
@@ -99,7 +99,7 @@ impl Draw {
 
     pub fn fill_no_blend(&self, pos: IVec2, size: IVec2, rgba: IVec4) -> i32 {
         unsafe {
-            engine::Draw_FillRGBA.get(self.marker)(
+            ((&*engine::cl_enginefuncs.get(self.marker)).pfnFillRGBA)(
                 pos.x, pos.y, size.x, size.y, rgba.x, rgba.y, rgba.z, rgba.w,
             );
         }
@@ -176,8 +176,22 @@ impl Draw {
         let rgb = rgb.into();
         let pos = pos.into();
 
-        unsafe { engine::SPR_Set.get(self.marker)(curr_digit.pointer, rgb.x, rgb.y, rgb.z) };
-        unsafe { engine::SPR_DrawAdditive.get(self.marker)(0, pos.x, pos.y, &curr_digit.rect) };
+        unsafe {
+            ((&*engine::cl_enginefuncs.get(self.marker)).pfnSPR_Set)(
+                curr_digit.pointer,
+                rgb.x,
+                rgb.y,
+                rgb.z,
+            )
+        };
+        unsafe {
+            ((&*engine::cl_enginefuncs.get(self.marker)).pfnSPR_DrawAdditive)(
+                0,
+                pos.x,
+                pos.y,
+                &curr_digit.rect,
+            )
+        };
 
         // monospace
         digit_sprite_width
@@ -214,7 +228,7 @@ impl Draw {
         let (width, height) = DIGIT_SPRITE_SIZE.get(self.marker)?;
 
         SpriteDigitLine {
-            marker: self.marker,
+            _marker: self.marker,
             draw: self,
             pos: pos.into(),
             rgb: rgb.into(),
@@ -343,5 +357,4 @@ pub unsafe fn draw_hud(marker: MainThreadMarker) {
     tas_studio::draw_hud(marker, &draw);
     menu::draw_custom_menu(marker, &draw);
     timer::draw_timer(marker, &draw);
-    // sprite::test_draw(marker, &draw);
 }

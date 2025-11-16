@@ -11,6 +11,7 @@
 //! Some files are manually done though!
 
 pub mod buttons;
+pub mod cl_enginefuncs;
 pub mod com_model;
 pub mod command;
 pub mod cvar;

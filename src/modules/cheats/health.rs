@@ -23,7 +23,7 @@ impl Module for CheatHealth {
     }
 
     fn is_enabled(&self, marker: MainThreadMarker) -> bool {
-        CVars.is_enabled(marker) && Commands.is_enabled(marker) 
+        CVars.is_enabled(marker) && Commands.is_enabled(marker)
         && engine::cvar_vars.is_set(marker) // is_cheats_enabled
         && engine::svs.is_set(marker) // player_edict
     }

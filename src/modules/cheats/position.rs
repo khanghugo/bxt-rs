@@ -23,7 +23,7 @@ impl Module for CheatPos {
     }
 
     fn is_enabled(&self, marker: MainThreadMarker) -> bool {
-        CVars.is_enabled(marker) && Commands.is_enabled(marker) 
+        CVars.is_enabled(marker) && Commands.is_enabled(marker)
         && engine::cvar_vars.is_set(marker) // is_cheats_enabled
         && engine::svs.is_set(marker) // player_edict
     }
@@ -41,7 +41,10 @@ Sets current position.",
 );
 
 fn set_pos_str(marker: MainThreadMarker, pos: String) {
-    let pos = pos.split_ascii_whitespace().filter_map(|x| x.parse::<f32>().ok()).collect::<Vec<f32>>();
+    let pos = pos
+        .split_ascii_whitespace()
+        .filter_map(|x| x.parse::<f32>().ok())
+        .collect::<Vec<f32>>();
 
     if pos.len() != 3 {
         con_print(marker, "Needs 3 numbers\n");
@@ -61,5 +64,5 @@ fn set_pos_xyz(marker: MainThreadMarker, x: f32, y: f32, z: f32) {
         return;
     };
 
-    player.v.origin = [x, y , z];
+    player.v.origin = [x, y, z];
 }

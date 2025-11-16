@@ -1,11 +1,11 @@
 //! `bxt_give`
 
-use std::ffi::{CString};
+use std::ffi::CString;
 
 use crate::handler;
 use crate::hooks::engine::{self, con_print, get_entity_index, is_cheat_enabled, player_edict};
 use crate::modules::commands::{Command, Commands};
-use crate::modules::cvars::{CVars};
+use crate::modules::cvars::CVars;
 use crate::modules::Module;
 use crate::utils::*;
 
@@ -25,8 +25,8 @@ impl Module for CheatGive {
     }
 
     fn is_enabled(&self, marker: MainThreadMarker) -> bool {
-        CVars.is_enabled(marker) 
-        && Commands.is_enabled(marker) 
+        CVars.is_enabled(marker)
+        && Commands.is_enabled(marker)
         && engine::cvar_vars.is_set(marker) // is_cheats_enabled
         && engine::AllocEngineString.is_set(marker)
         && engine::CreateNamedEntity.is_set(marker)
@@ -69,7 +69,7 @@ fn give_item(marker: MainThreadMarker, item: String) {
     }
 
     let new_entity = unsafe { &mut *new_entity };
-    
+
     let player = unsafe { player_edict(marker) };
     let Some(player) = player.map(|mut player| unsafe { player.as_mut() }) else {
         return;
@@ -95,5 +95,4 @@ fn give_item(marker: MainThreadMarker, item: String) {
         dispatch_spawn(new_entity);
         dispatch_touch(new_entity, player);
     }
-
 }

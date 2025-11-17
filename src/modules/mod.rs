@@ -38,6 +38,7 @@ pub mod help;
 pub mod hud;
 pub mod hud_scale;
 pub mod lightstyle;
+pub mod manual_autofuncs;
 pub mod menu;
 pub mod novis;
 pub mod player_movement_tracing;
@@ -118,6 +119,7 @@ pub static MODULES: &[&dyn Module] = &[
     &hud_scale::HudScale,
     &lightstyle::LightStyle,
     &menu::Menu,
+    &manual_autofuncs::ManualAutofuncs,
     &novis::NoVis,
     &player_movement_tracing::PlayerMovementTracing,
     &remote_forbid::RemoteForbid,

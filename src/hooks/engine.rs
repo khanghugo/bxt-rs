@@ -2646,6 +2646,7 @@ pub mod exported {
             let marker = MainThreadMarker::new();
 
             campath::capture_motion(marker);
+            pointfile_tb::capture_point(marker);
 
             V_RenderView.get(marker)()
         })
@@ -2818,6 +2819,7 @@ pub mod exported {
                 timer::on_new_frame(marker);
 
                 cheats::hook::hook_player(marker);
+                pointfile_tb::update_time(marker);
 
                 tas_optimizer::update_client_connection_condition(marker);
                 tas_optimizer::maybe_receive_messages_from_remote_server(marker);

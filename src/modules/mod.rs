@@ -42,6 +42,7 @@ pub mod manual_autofuncs;
 pub mod menu;
 pub mod novis;
 pub mod player_movement_tracing;
+pub mod pointfile_tb;
 pub mod remote_forbid;
 pub mod rng_set;
 pub mod scoreboard_remove;
@@ -122,6 +123,7 @@ pub static MODULES: &[&dyn Module] = &[
     &manual_autofuncs::ManualAutofuncs,
     &novis::NoVis,
     &player_movement_tracing::PlayerMovementTracing,
+    &pointfile_tb::PointfileTB,
     &remote_forbid::RemoteForbid,
     &rng_set::RngSet,
     &scoreboard_remove::ScoreboardRemove,

@@ -30,6 +30,7 @@ pub mod checkpoint_menu;
 pub mod comment_overflow_fix;
 pub mod demo_playback;
 pub mod disable_loading_text;
+pub mod disable_metamod;
 pub mod emit_sound;
 pub mod fade_remove;
 pub mod fix_widescreen;
@@ -111,6 +112,7 @@ pub static MODULES: &[&dyn Module] = &[
     &cvars::CVars,
     &demo_playback::DemoPlayback,
     &disable_loading_text::DisableLoadingText,
+    &disable_metamod::DisableMetamod,
     &emit_sound::EmitSound,
     &fade_remove::FadeRemove,
     &fix_widescreen::FixWidescreen,

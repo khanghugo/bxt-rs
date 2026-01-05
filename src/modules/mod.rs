@@ -63,6 +63,7 @@ pub mod user_defined_menu;
 pub mod viewmodel_remove;
 pub mod viewmodel_sway;
 pub mod wallhack;
+pub mod wallhack_esp;
 
 /// Trait for getting module information.
 pub trait Module: Sync {
@@ -145,4 +146,5 @@ pub static MODULES: &[&dyn Module] = &[
     &viewmodel_remove::ViewmodelRemove,
     &viewmodel_sway::ViewmodelSway,
     &wallhack::Wallhack,
+    &wallhack_esp::WallhackEsp,
 ];

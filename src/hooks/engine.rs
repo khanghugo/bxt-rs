@@ -19,6 +19,7 @@ use crate::ffi::cvar::cvar_s;
 use crate::ffi::edict::edict_s;
 use crate::ffi::playermove::playermove_s;
 use crate::ffi::progdefs::globalvars_t;
+use crate::ffi::r_efx::cl_entity_s;
 use crate::ffi::server::server_t;
 use crate::ffi::triangleapi::triangleapi_s;
 use crate::ffi::usercmd::usercmd_s;
@@ -284,6 +285,7 @@ pub static Con_ToggleConsole_f: Pointer<unsafe extern "C" fn()> = Pointer::empty
     my_Con_ToggleConsole_f as _,
 );
 pub static com_gamedir: Pointer<*mut [c_char; 260]> = Pointer::empty(b"com_gamedir\0");
+pub static currententity: Pointer<*mut *mut cl_entity_s> = Pointer::empty(b"currententity\0");
 pub static Cvar_RegisterVariable: Pointer<unsafe extern "C" fn(*mut cvar_s)> =
     Pointer::empty_patterns(
         b"Cvar_RegisterVariable\0",
@@ -664,6 +666,8 @@ pub static r_refdef_viewangles: Pointer<*mut [c_float; 3]> = Pointer::empty(
     // Not a real symbol name.
     b"r_refdef_viewangles\0",
 );
+pub static r_ambientlight: Pointer<*mut c_int> = Pointer::empty(b"r_ambientlight\0");
+pub static r_colormix: Pointer<*mut [c_float; 3]> = Pointer::empty(b"r_colormix\0");
 pub static R_DrawSequentialPoly: Pointer<
     unsafe extern "C" fn(*mut c_void, *mut c_int) -> *mut c_void,
 > = Pointer::empty_patterns(
@@ -729,6 +733,14 @@ pub static R_DrawViewModel: Pointer<unsafe extern "C" fn()> = Pointer::empty_pat
         pattern!(83 EC ?? D9 05 ?? ?? ?? ?? D8 1D ?? ?? ?? ?? 56 57 33 FF C7 44),
     ]),
     my_R_DrawViewModel as _,
+);
+pub static R_StudioDrawPoints: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
+    b"R_StudioDrawPoints\0",
+    Patterns(
+        // 8684
+        &[],
+    ),
+    my_R_StudioDrawPoints as _,
 );
 pub static R_LoadSkys: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
     b"R_LoadSkys\0",
@@ -1144,6 +1156,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &Con_Printf,
     &Con_ToggleConsole_f,
     &com_gamedir,
+    &currententity,
     &Cvar_RegisterVariable,
     &CreateNamedEntity,
     &cvar_vars,
@@ -1188,6 +1201,8 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &r_refdef,
     &r_refdef_vieworg,
     &r_refdef_viewangles,
+    &r_ambientlight,
+    &r_colormix,
     &R_RenderView,
     &R_SetFrustum,
     &ReleaseEntityDlls,
@@ -1195,6 +1210,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &R_DrawSequentialPoly,
     &R_DrawSkyBox,
     &R_DrawViewModel,
+    &R_StudioDrawPoints,
     &R_LoadSkys,
     &R_PreDrawViewModel,
     &S_PaintChannels,
@@ -2606,6 +2622,16 @@ pub mod exported {
             }
 
             R_DrawViewModel.get(marker)();
+        })
+    }
+
+    #[export_name = "R_StudioDrawPoints"]
+    pub unsafe extern "C" fn my_R_StudioDrawPoints() {
+        abort_on_panic(move || {
+            let marker = MainThreadMarker::new();
+            wallhack_esp::with_wallhack_esp_player(marker, move || {
+                R_StudioDrawPoints.get(marker)()
+            });
         })
     }
 

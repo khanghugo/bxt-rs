@@ -55,8 +55,8 @@ static BXT_ESP_PLAYER_OUTLINE_COLORMODE: CVar = CVar::new(
     b"0\0",
     "\
 0: Set by team. Blue = CT. Red = T.
-1: Colors are sequentially assigned.
-Other values: Just white.
+1: White outline.
+Other values: Random color where input is the seed.
 ",
 );
 
@@ -114,6 +114,13 @@ fn is_ct(current_entity: &cl_entity_s) -> bool {
     ct.iter().any(|x| model_name_str.contains(x))
 }
 
+fn random(nth: usize, len: usize, seed: usize) -> usize {
+    // length should be even so we have a more interesting rng
+    let multiplier = seed.wrapping_mul(2).wrapping_add(1);
+
+    multiplier.wrapping_mul(nth).wrapping_add(seed) % len
+}
+
 fn select_color(marker: MainThreadMarker, current_entity: &cl_entity_s) -> [Color; 2] {
     let option = BXT_ESP_PLAYER_OUTLINE_COLORMODE.as_f32(marker) as usize;
 
@@ -125,12 +132,12 @@ fn select_color(marker: MainThreadMarker, current_entity: &cl_entity_s) -> [Colo
                 [COLORS[1], COLORS_DIMMED[1]]
             }
         }
-        1 => {
+        1 => [COLORS[2], COLORS_DIMMED[2]],
+        x => {
             // sub 1 because entity 0 is worldspawn and player starts at 1
-            let index = (current_entity.index as usize - 1) % COLORS.len();
+            let index = random(current_entity.index as usize - 1, COLORS.len(), x);
             [COLORS[index], COLORS_DIMMED[index]]
         }
-        _ => [COLORS[2], COLORS_DIMMED[2]],
     }
 }
 

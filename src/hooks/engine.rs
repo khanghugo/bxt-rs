@@ -1447,11 +1447,6 @@ pub struct dma_t {
 }
 
 #[repr(C)]
-pub struct cl_entity_s {
-    pub index: c_int,
-}
-
-#[repr(C)]
 pub struct cl_entity_s_viewmodel {
     pub origin: [c_float; 3],
     pub angles: [c_float; 3],

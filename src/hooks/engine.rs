@@ -736,11 +736,25 @@ pub static R_DrawViewModel: Pointer<unsafe extern "C" fn()> = Pointer::empty_pat
 );
 pub static R_StudioDrawPoints: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
     b"R_StudioDrawPoints\0",
-    Patterns(
+    // To find, search for "T.mdl". This is `R_LoadTextures()`.
+    // There is only one function referencing this function
+    // and that is `R_StudioDrawPoints()`
+    Patterns(&[
         // 8684
-        &[],
-    ),
+        pattern!(55 8B EC 83 EC 48 A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 53 56 8B 70),
+    ]),
     my_R_StudioDrawPoints as _,
+);
+pub static R_StudioLighting: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
+    b"R_StudioLighting\0",
+    // To find, search for the result of evaluation "1. / 1023.".
+    // The value tends to be "0.0009775171"
+    // This function at the moment is used for finding `r_ambientlight`.
+    Patterns(&[
+        // 8684
+        pattern!(55 8B EC 51 DB 05 ?? ?? ?? ?? 8A 4D ?? B8 01 00 00 00),
+    ]),
+    null_mut(),
 );
 pub static R_LoadSkys: Pointer<unsafe extern "C" fn()> = Pointer::empty_patterns(
     b"R_LoadSkys\0",
@@ -1211,6 +1225,7 @@ static POINTERS: &[&dyn PointerTrait] = &[
     &R_DrawSkyBox,
     &R_DrawViewModel,
     &R_StudioDrawPoints,
+    &R_StudioLighting,
     &R_LoadSkys,
     &R_PreDrawViewModel,
     &S_PaintChannels,
@@ -2226,6 +2241,25 @@ pub unsafe fn find_pointers(marker: MainThreadMarker, base: *mut c_void, size: u
         // CoF-5936
         Some(2) => {
             scr_fov_value.set(marker, ptr.by_offset(marker, 7));
+        }
+        _ => (),
+    }
+
+    let ptr = &R_StudioDrawPoints;
+    match ptr.pattern_index(marker) {
+        // 8684
+        Some(0) => {
+            currententity.set(marker, ptr.by_offset(marker, 101));
+            r_colormix.set(marker, ptr.by_offset(marker, 679));
+        }
+        _ => (),
+    }
+
+    let ptr = &R_StudioLighting;
+    match ptr.pattern_index(marker) {
+        // 8684
+        Some(0) => {
+            r_ambientlight.set(marker, ptr.by_offset(marker, 6));
         }
         _ => (),
     }

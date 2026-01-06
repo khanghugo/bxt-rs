@@ -2040,10 +2040,6 @@ pub unsafe fn find_pointers(marker: MainThreadMarker, base: *mut c_void, size: u
 #[cfg(windows)]
 unsafe fn maybe_hook(marker: MainThreadMarker, pointer: &dyn PointerTrait) {
     use minhook_sys::*;
-    use winapi::um::handleapi::CloseHandle;
-    use winapi::um::synchapi::ReleaseMutex;
-    use winapi::um::winbase::OpenMutexA;
-    use winapi::um::winnt::SYNCHRONIZE;
 
     if !pointer.is_set(marker) {
         return;
@@ -2070,19 +2066,6 @@ unsafe fn maybe_hook(marker: MainThreadMarker, pointer: &dyn PointerTrait) {
         NonNull::new_unchecked(trampoline),
         pointer.pattern_index(marker),
     );
-
-    // trying to free launcher mutex
-    // to have multiple game instances
-    let mutex = OpenMutexA(
-        SYNCHRONIZE,
-        0,
-        "ValveHalfLifeLauncherMutex".as_ptr() as *mut i8,
-    );
-
-    if !mutex.is_null() {
-        ReleaseMutex(mutex);
-        CloseHandle(mutex);
-    }
 
     assert_eq!(MH_EnableHook(original.as_ptr()), MH_OK);
 }
@@ -2134,6 +2117,40 @@ pub mod exported {
                     }
 
                     maybe_hook(marker, pointer);
+                }
+
+                {
+                    // trying to free launcher mutex
+                    // to have multiple game instances
+                    // BXT also tries doing the same thing but there is no conflict
+
+                    use winapi::um::handleapi::CloseHandle;
+                    use winapi::um::synchapi::{OpenMutexW, ReleaseMutex};
+                    use winapi::um::winnt::SYNCHRONIZE;
+
+                    fn to_wide(s: &str) -> Vec<u16> {
+                        use std::ffi::OsStr;
+                        use std::os::windows::ffi::OsStrExt;
+
+                        OsStr::new(s)
+                            .encode_wide()
+                            // add null terminator
+                            .chain(std::iter::once(0))
+                            .collect()
+                    }
+
+                    // this mutex exists so need to open the exact mutex
+                    // with OpenMutexW, not OpenMutexA
+                    let mutex = OpenMutexW(
+                        SYNCHRONIZE,
+                        0,
+                        to_wide("ValveHalfLifeLauncherMutex").as_ptr(),
+                    );
+
+                    if !mutex.is_null() {
+                        ReleaseMutex(mutex);
+                        CloseHandle(mutex);
+                    }
                 }
             }
 

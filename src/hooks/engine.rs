@@ -2086,6 +2086,41 @@ fn reset_pointers(marker: MainThreadMarker) {
     }
 }
 
+#[cfg(windows)]
+fn allow_multiple_instances() {
+    // trying to free launcher mutex
+    // to have multiple game instances
+    // BXT also tries doing the same thing but there is no conflict
+
+    use winapi::um::handleapi::CloseHandle;
+    use winapi::um::synchapi::{OpenMutexW, ReleaseMutex};
+    use winapi::um::winnt::SYNCHRONIZE;
+
+    fn to_wide(s: &str) -> Vec<u16> {
+        use std::ffi::OsStr;
+        use std::os::windows::ffi::OsStrExt;
+
+        OsStr::new(s)
+            .encode_wide()
+            // add null terminator
+            .chain(std::iter::once(0))
+            .collect()
+    }
+
+    let mutex_name = to_wide("ValveHalfLifeLauncherMutex");
+
+    // this mutex exists so need to open the exact mutex
+    // with OpenMutexW, not OpenMutexA
+    let mutex = unsafe { OpenMutexW(SYNCHRONIZE, 0, mutex_name.as_ptr()) };
+
+    if !mutex.is_null() {
+        unsafe {
+            ReleaseMutex(mutex);
+            CloseHandle(mutex);
+        }
+    }
+}
+
 use exported::*;
 
 /// Functions exported for `LD_PRELOAD` hooking.
@@ -2119,39 +2154,7 @@ pub mod exported {
                     maybe_hook(marker, pointer);
                 }
 
-                {
-                    // trying to free launcher mutex
-                    // to have multiple game instances
-                    // BXT also tries doing the same thing but there is no conflict
-
-                    use winapi::um::handleapi::CloseHandle;
-                    use winapi::um::synchapi::{OpenMutexW, ReleaseMutex};
-                    use winapi::um::winnt::SYNCHRONIZE;
-
-                    fn to_wide(s: &str) -> Vec<u16> {
-                        use std::ffi::OsStr;
-                        use std::os::windows::ffi::OsStrExt;
-
-                        OsStr::new(s)
-                            .encode_wide()
-                            // add null terminator
-                            .chain(std::iter::once(0))
-                            .collect()
-                    }
-
-                    // this mutex exists so need to open the exact mutex
-                    // with OpenMutexW, not OpenMutexA
-                    let mutex = OpenMutexW(
-                        SYNCHRONIZE,
-                        0,
-                        to_wide("ValveHalfLifeLauncherMutex").as_ptr(),
-                    );
-
-                    if !mutex.is_null() {
-                        ReleaseMutex(mutex);
-                        CloseHandle(mutex);
-                    }
-                }
+                allow_multiple_instances();
             }
 
             // GL_SetMode() happens before Memory_Init(), which means the OpenGL context has already
